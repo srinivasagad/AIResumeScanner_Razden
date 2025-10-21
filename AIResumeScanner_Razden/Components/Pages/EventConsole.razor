@@ -1,0 +1,22 @@
+﻿<div class="event-console border rounded p-2 bg-light mb-3" style="max-height:200px;overflow:auto;">
+    @foreach (var message in messages)
+    {
+        <div class="text-secondary small">@message</div>
+    }
+</div>
+
+@code {
+    private List<string> messages = new();
+
+    public void Log(string message)
+    {
+        messages.Add(message);
+        StateHasChanged();
+    }
+
+    public void Clear()
+    {
+        messages.Clear();
+        StateHasChanged();
+    }
+}

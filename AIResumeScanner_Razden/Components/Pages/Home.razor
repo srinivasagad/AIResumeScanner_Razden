@@ -1,0 +1,234 @@
+﻿@page "/"
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject SentimentService MySentimentService
+@using System.Web
+@using iTextSharp.text;
+@using iTextSharp.text.pdf;
+@using Microsoft.Extensions.Azure;
+@using System.Reflection.Metadata;
+@using System.Text;
+@using Document = iTextSharp.text.Document;
+<PageTitle>AI Resume Scanner</PageTitle>
+
+
+<OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
+<RadzenTemplateForm Data="@jobModel" TItem="JobModel" Submit="@HandleSubmit">
+    <div class="form-grid" style="display: grid; gap: 20px; grid-template-columns: 1fr; max-width: 600px;">
+
+        <RadzenLabel Text="Provide Job Description" Component="JobDescription" />
+        <RadzenTextArea @bind-Value="jobModel.JobDescription" Name="JobDescription" Rows="5" Style="width:100%" />
+        <div style="display: flex; gap: 12px;">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Submit" Style="width: 120px;" />
+            <RadzenButton ButtonType="ButtonType.Button" Text="Clear" Style="width: 120px;" Click="ClearTextArea" />
+            <RadzenButton ButtonType="ButtonType.Button" Text="Export to CSV" Style="width: 120px;" Click="ExportToCsv" Visible="showExport" />
+            <RadzenButton ButtonType="ButtonType.Button" Text="Export to PDF" Style="width: 120px;" Click="ExportToPdf" Visible="showExport" />
+        </div>
+    </div>
+</RadzenTemplateForm>
+
+<br/>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div>
+        @chatResponse
+        </div>
+    </div>  
+</div>
+
+@code {
+    private JobModel jobModel = new();
+    private List<Models.Result> resumeresults = new();
+    private bool showLoader = false;
+    private bool showExport = false;
+    private string chatResponse = string.Empty;
+    // Azure OpenAI Configuration
+    private string azureOpenAiEndpoint { get; set; } = string.Empty;
+    private string azureOpenAiApiKey { get; set; } = string.Empty;
+    private string chatDeploymentName { get; set; } = string.Empty;
+    private string embeddingDeploymentName { get; set; } = string.Empty;
+
+    // Azure AI Search Configuration
+    private string searchEndpoint { get; set; } = string.Empty;
+    private string searchIndexName { get; set; } = string.Empty;
+    private string searchApiKey { get; set; } = string.Empty;
+
+    private string sessionId = Guid.NewGuid().ToString();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        showLoader = false;
+        azureOpenAiEndpoint = _configuration.GetSection("OpenAISettings")["AzureOpenAiEndpoint"];
+        azureOpenAiApiKey = _configuration.GetSection("OpenAISettings")["AzureOpenAiApiKey"];
+        chatDeploymentName = _configuration.GetSection("OpenAISettings")["ChatDeploymentName"];
+        embeddingDeploymentName = _configuration.GetSection("OpenAISettings")["EmbeddingDeploymentName"];
+        searchEndpoint = _configuration.GetSection("OpenAISettings")["SearchEndpoint"];
+        searchIndexName = _configuration.GetSection("OpenAISettings")["SearchIndexName"];
+        searchApiKey = _configuration.GetSection("OpenAISettings")["SearchApiKey"];
+    }
+
+    private async Task HandleSubmit()
+    {
+        
+            // Create agent
+            var agent = new SearchAgent(
+                azureOpenAiEndpoint,
+                azureOpenAiApiKey,
+                chatDeploymentName,
+                embeddingDeploymentName,
+                searchEndpoint,
+                searchIndexName,
+                searchApiKey,
+                sessionId
+            );
+
+            Console.WriteLine("Search Agent initialized with Azure OpenAI. Type 'exit' to quit.");
+            Console.WriteLine("Type 'stream' to toggle streaming mode with function call visibility.\n");
+            Console.WriteLine("Type 'log' to Log all conversation.\n");
+            Console.WriteLine("Type 'exporttocsv' to Log all conversation.\n");
+            Console.WriteLine("Type 'exportpdf' to Log all conversation.\n");
+            Console.WriteLine("Type 'clearhistory' to Log all conversation.\n");
+
+            bool useStreaming = false;
+
+            Console.Write("You: ");
+        var input = jobModel.JobDescription;
+
+        if (string.IsNullOrWhiteSpace(input))
+            return;
+
+        if (input.ToLower() == "stream")
+        {
+            useStreaming = !useStreaming;
+            Console.WriteLine($"\nStreaming mode: {(useStreaming ? "ON" : "OFF")}\n");
+            return;
+        }
+
+        if (input.ToLower() == "log")
+        {
+            // Display conversation history
+            Console.WriteLine("\n--- Conversation History ---");
+            var history = agent.GetConversationHistory();
+            foreach (var msg in history)
+            {
+                Console.WriteLine($"[{msg.Timestamp:yyyy-MM-dd HH:mm:ss}] {msg.Role}: {msg.Content}");
+            }
+            return;
+        }
+
+        if (input.ToLower() == "exporttocsv")
+        {
+            var history = agent.GetConversationHistory();
+            ExportToCsv();
+        }
+
+        if(input.ToLower() == "exportpdf")
+        {
+            var history = agent.GetConversationHistory();
+            string pdfPath = $"conversation_history_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            ExportToPdf();
+        }
+
+        if (input.ToLower() == "clearhistory")
+        {
+            agent.ClearConversationHistory();
+        }
+
+        try
+        {
+            string response;
+            showExport = false;
+            if (useStreaming)
+            {
+                response = await agent.ChatWithStreamingAsync(input);
+            }
+            else
+            {
+                response = await agent.ChatAsync(input);
+                chatResponse = HttpUtility.HtmlEncode(response);
+                showExport = true;
+            }
+            Console.WriteLine($"\nAssistant: {response}\n");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\nError: {ex.Message}");
+            Console.WriteLine($"Stack: {ex.StackTrace}\n");
+        }
+
+    }
+    void ExportToCsv()
+    {
+        var agent = new SearchAgent(
+                azureOpenAiEndpoint,
+                azureOpenAiApiKey,
+                chatDeploymentName,
+                embeddingDeploymentName,
+                searchEndpoint,
+                searchIndexName,
+                searchApiKey,
+                sessionId
+            );
+        var history = agent.GetConversationHistory();
+        string pdfPath = $"conversation_history.csv"; 
+        var sb = new StringBuilder();
+        sb.AppendLine("Timestamp,Role,Content"); // CSV header
+
+        foreach (var msg in history)
+        {
+            // Escape double quotes and commas in content
+            string safeContent = msg.Content.Replace("\"", "\"\"");
+            sb.AppendLine($"\"{msg.Timestamp:yyyy-MM-dd HH:mm:ss}\",\"{msg.Role}\",\"{safeContent}\"");
+        }
+
+        File.WriteAllText(pdfPath, sb.ToString(), Encoding.UTF8);
+    }
+
+    void ExportToPdf()
+    {
+         var agent = new SearchAgent(
+                azureOpenAiEndpoint,
+                azureOpenAiApiKey,
+                chatDeploymentName,
+                embeddingDeploymentName,
+                searchEndpoint,
+                searchIndexName,
+                searchApiKey,
+                sessionId
+            );
+        var history = agent.GetConversationHistory();        
+        string pdfPath = $"conversation_history_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+        // Create a new PDF document
+        Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+        PdfWriter.GetInstance(document, new FileStream(pdfPath, FileMode.Create));
+        document.Open();
+
+        // Define fonts
+        var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+        var roleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.BLUE);
+        var contentFont = FontFactory.GetFont(FontFactory.HELVETICA, 11);
+
+        // Add title
+        document.Add(new Paragraph("Conversation History", titleFont));
+        document.Add(new Paragraph($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n"));
+
+        // Add conversation entries
+        foreach (var msg in history)
+        {
+            var header = new Paragraph($"[{msg.Timestamp:yyyy-MM-dd HH:mm:ss}] {msg.Role}:", roleFont);
+            document.Add(header);
+
+            var content = new Paragraph(msg.Content + "\n\n", contentFont);
+            document.Add(content);
+        }
+
+        document.Close();
+    }
+    void ClearTextArea()
+    {
+        jobModel.JobDescription = string.Empty; // Or messageContent = "";
+        StateHasChanged();
+    }
+}
