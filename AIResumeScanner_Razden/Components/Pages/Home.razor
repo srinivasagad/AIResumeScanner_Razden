@@ -43,6 +43,10 @@
     private bool showLoader = false;
     private bool showExport = false;
     private string chatResponse = string.Empty;
+
+     [Inject]
+    public IConfiguration _configuration { get; set; }
+    
     // Azure OpenAI Configuration
     private string azureOpenAiEndpoint { get; set; } = string.Empty;
     private string azureOpenAiApiKey { get; set; } = string.Empty;
