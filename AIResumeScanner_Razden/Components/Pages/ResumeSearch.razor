@@ -1,0 +1,374 @@
+@page "/"
+@using System.Text.Json
+@using System.Web
+
+<div class="chat-container">
+    <div class="chat-header">
+        <h3>Profile Search</h3>
+        <button class="clear-btn" @onclick="ClearHistory">Clear All</button>
+    </div>
+
+    <div class="chat-messages">
+        @if (chatHistory.Count == 0)
+        {
+            <div class="empty-state">
+                <p>No chat history yet. Start a conversation!</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var msg in chatHistory)
+            {
+                <div class="message @(msg.Role == "user" ? "user-message" : "ai-message")">
+                    <div class="message-header">
+                        <span class="sender">@(msg.Role == "user" ? "You" : "AI Assistant")</span>
+                        <span class="timestamp">@msg.Timestamp.ToString("MMM dd, yyyy hh:mm tt")</span>
+                    </div>
+                    <div class="message-content">
+                        @if (msg.Role == "user")
+                        {
+                            @msg.Content
+                        }
+                        else
+                        {
+                            @((MarkupString)msg.Content.Replace("\n", "<br />"))
+                        }
+                    </div>
+                    @* @if (!msg.IsUser && msg.Sources != null && msg.Sources.Any())
+                    {
+                        <div class="sources">
+                            <strong>Sources:</strong>
+                            <ul>
+                                @foreach (var source in msg.Sources)
+                                {
+                                    <li><a href="@source.Url" target="_blank">@source.Title</a></li>
+                                }
+                            </ul>
+                        </div>
+                    } *@
+                </div>
+            }
+        }
+    </div>
+
+    <div class="chat-input-section">
+        <input type="text" 
+               class="chat-input" 
+               placeholder="Type your message..." 
+               @bind="currentMessage" 
+               @bind:event="oninput" />
+        <button class="send-btn" @onclick="HandleSubmit" disabled="@string.IsNullOrWhiteSpace(currentMessage)">
+            Send
+        </button>
+    </div>
+</div>
+
+@code {
+    private List<Models.ChatMessage> chatHistory = new();
+    private string currentMessage = "";
+    private string chatResponse = string.Empty;
+    // Azure OpenAI Configuration
+    private string azureOpenAiEndpoint = "https://resumeembeddingendpoint.openai.azure.com/";
+    private string azureOpenAiApiKey = "BxUQYM8ND9UR2q3WqFrk2YlyHR4NHCG2ORy6xpublVSY4WIl3TwYJQQJ99BJACYeBjFXJ3w3AAABACOGeGiz";
+    private string chatDeploymentName = "gpt-4.1"; // Your deployment name for chat
+    private string embeddingDeploymentName = "text-embedding-ada-002"; // Your deployment name for embeddings
+
+    // Azure AI Search Configuration
+    private string searchEndpoint = "https://resumeaisearchstore.search.windows.net";
+    private string searchIndexName = "resumefieldssearchindex";
+    private string searchApiKey = "4psgmJYJRx5OdFgCXrkcPJRhYsbH1t3hQIVhcML2MHAzSeCSOFvJ";
+
+    private string sessionId = Guid.NewGuid().ToString();
+
+
+
+    protected override void OnInitialized()
+    {
+        // Load sample data
+        //LoadSampleData();
+    }
+private async Task HandleSubmit()
+    {
+        
+            // Create agent
+            var agent = new SearchAgent(
+                azureOpenAiEndpoint,
+                azureOpenAiApiKey,
+                chatDeploymentName,
+                embeddingDeploymentName,
+                searchEndpoint,
+                searchIndexName,
+                searchApiKey,
+                sessionId
+            );
+
+            Console.WriteLine("Search Agent initialized with Azure OpenAI. Type 'exit' to quit.");
+            Console.WriteLine("Type 'stream' to toggle streaming mode with function call visibility.\n");
+            Console.WriteLine("Type 'log' to Log all conversation.\n");
+            Console.WriteLine("Type 'exporttocsv' to Log all conversation.\n");
+            Console.WriteLine("Type 'exportpdf' to Log all conversation.\n");
+            Console.WriteLine("Type 'clearhistory' to Log all conversation.\n");
+
+            bool useStreaming = false;
+
+            Console.Write("You: ");
+        var input = currentMessage;
+
+        if (string.IsNullOrWhiteSpace(input))
+            return;
+
+        if (input.ToLower() == "stream")
+        {
+            useStreaming = !useStreaming;
+            Console.WriteLine($"\nStreaming mode: {(useStreaming ? "ON" : "OFF")}\n");
+            return;
+        }
+
+        if (input.ToLower() == "log")
+        {
+            // Display conversation history
+            Console.WriteLine("\n--- Conversation History ---");
+            var history = agent.GetConversationHistory();
+            foreach (var msg in history)
+            {
+                Console.WriteLine($"[{msg.Timestamp:yyyy-MM-dd HH:mm:ss}] {msg.Role}: {msg.Content}");
+            }
+            return;
+        }
+
+        if (input.ToLower() == "clearhistory")
+        {
+            agent.ClearConversationHistory();
+        }
+
+        try
+        {
+            string response;
+            //showExport = false;
+            if (useStreaming)
+            {
+                response = await agent.ChatWithStreamingAsync(input);
+            }
+            else
+            {
+                chatHistory = agent.GetConversationHistory();
+                response = await agent.ChatAsync(input);
+                chatResponse = HttpUtility.HtmlEncode(response);
+                //showExport = true;
+            }
+            Console.WriteLine($"\nAssistant: {response}\n");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\nError: {ex.Message}");
+            Console.WriteLine($"Stack: {ex.StackTrace}\n");
+        }
+
+    }
+    
+    private async void HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(currentMessage))
+        {
+            await HandleSubmit();
+        }
+    }
+
+    private void ClearHistory()
+    {
+        var agent = new SearchAgent(
+                azureOpenAiEndpoint,
+                azureOpenAiApiKey,
+                chatDeploymentName,
+                embeddingDeploymentName,
+                searchEndpoint,
+                searchIndexName,
+                searchApiKey,
+                sessionId
+            );
+        agent.ClearConversationHistory();
+        chatHistory.Clear();
+        StateHasChanged();
+    }
+
+    @* public class ChatMessage
+    {
+        public string Content { get; set; } = "";
+        public bool IsUser { get; set; }
+        public DateTime Timestamp { get; set; }
+        public List<Source>? Sources { get; set; }
+    }
+
+    public class Source
+    {
+        public string Title { get; set; } = "";
+        public string Url { get; set; } = "";
+    } *@
+}
+
+<style>
+    .chat-container {
+        max-width: 900px;
+        margin: 0 auto;
+        height: 90vh;
+        display: flex;
+        flex-direction: column;
+        background: #f8f9fa;
+    }
+
+    .chat-header {
+        padding: 20px;
+        background: #fff;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-header h3 {
+        margin: 0;
+        color: #333;
+    }
+
+    .clear-btn {
+        padding: 8px 16px;
+        background: #f44336;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .clear-btn:hover {
+        background: #d32f2f;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #666;
+        margin-top: 50px;
+    }
+
+    .message {
+        margin-bottom: 20px;
+        padding: 16px;
+        border-radius: 12px;
+        max-width: 80%;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @* @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    } *@
+
+    .user-message {
+        background: white;
+        color: rgb(25, 20, 20);
+        margin-left: auto;
+        border: 1px solid #0f0d0d;
+    }
+
+    .ai-message {
+        background: white;
+        color: #141212;
+        border: 1px solid #0f0d0d;
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 12px;
+    }
+
+    .sender {
+        font-weight: bold;
+    }
+
+    .user-message .sender,
+    .user-message .timestamp {
+        color: rgba(26, 24, 24, 0.9);
+    }
+
+    .timestamp {
+        color: #666;
+    }
+
+    .message-content {
+        line-height: 1.6;
+    }
+
+    .sources {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e0e0e0;
+        font-size: 14px;
+    }
+
+    .sources ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+    }
+
+    .sources li {
+        margin: 4px 0;
+    }
+
+    .sources a {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .sources a:hover {
+        text-decoration: underline;
+    }
+
+    .chat-input-section {
+        padding: 20px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 10px;
+    }
+
+    .chat-input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 1px solid #ddd;
+        border-radius: 24px;
+        font-size: 14px;
+        outline: none;
+    }
+
+    .chat-input:focus {
+        border-color: #181b1f;
+    }
+
+    .send-btn {
+        padding: 12px 32px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 24px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .send-btn:hover:not(:disabled) {
+        background: #0056b3;
+    }
+
+    .send-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+</style>
