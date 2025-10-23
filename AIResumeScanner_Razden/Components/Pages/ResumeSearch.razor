@@ -52,10 +52,10 @@
     </div>
 
     <div class="chat-input-section">
-        <input type="text" 
-               class="chat-input" 
-               placeholder="Type your message..." 
-               @bind="currentMessage" 
+        <input type="text"
+               class="chat-input"
+               placeholder="Type your message..."
+               @bind="currentMessage"
                @bind:event="oninput" />
         <button class="send-btn" @onclick="HandleSubmit" disabled="@string.IsNullOrWhiteSpace(currentMessage)">
             Send
@@ -80,38 +80,36 @@
 
     private string sessionId = Guid.NewGuid().ToString();
 
-
-
     protected override void OnInitialized()
     {
         // Load sample data
         //LoadSampleData();
     }
-private async Task HandleSubmit()
+
+    private async Task HandleSubmit()
     {
-        
-            // Create agent
-            var agent = new SearchAgent(
-                azureOpenAiEndpoint,
-                azureOpenAiApiKey,
-                chatDeploymentName,
-                embeddingDeploymentName,
-                searchEndpoint,
-                searchIndexName,
-                searchApiKey,
-                sessionId
-            );
+        // Create agent
+        var agent = new SearchAgent(
+            azureOpenAiEndpoint,
+            azureOpenAiApiKey,
+            chatDeploymentName,
+            embeddingDeploymentName,
+            searchEndpoint,
+            searchIndexName,
+            searchApiKey,
+            sessionId
+        );
 
-            Console.WriteLine("Search Agent initialized with Azure OpenAI. Type 'exit' to quit.");
-            Console.WriteLine("Type 'stream' to toggle streaming mode with function call visibility.\n");
-            Console.WriteLine("Type 'log' to Log all conversation.\n");
-            Console.WriteLine("Type 'exporttocsv' to Log all conversation.\n");
-            Console.WriteLine("Type 'exportpdf' to Log all conversation.\n");
-            Console.WriteLine("Type 'clearhistory' to Log all conversation.\n");
+        Console.WriteLine("Search Agent initialized with Azure OpenAI. Type 'exit' to quit.");
+        Console.WriteLine("Type 'stream' to toggle streaming mode with function call visibility.\n");
+        Console.WriteLine("Type 'log' to Log all conversation.\n");
+        Console.WriteLine("Type 'exporttocsv' to Log all conversation.\n");
+        Console.WriteLine("Type 'exportpdf' to Log all conversation.\n");
+        Console.WriteLine("Type 'clearhistory' to Log all conversation.\n");
 
-            bool useStreaming = false;
+        bool useStreaming = false;
 
-            Console.Write("You: ");
+        Console.Write("You: ");
         var input = currentMessage;
 
         if (string.IsNullOrWhiteSpace(input))
@@ -165,7 +163,7 @@ private async Task HandleSubmit()
         }
 
     }
-    
+
     private async void HandleKeyPress(KeyboardEventArgs e)
     {
         if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(currentMessage))
@@ -186,6 +184,7 @@ private async Task HandleSubmit()
                 searchApiKey,
                 sessionId
             );
+        
         agent.ClearConversationHistory();
         chatHistory.Clear();
         StateHasChanged();
