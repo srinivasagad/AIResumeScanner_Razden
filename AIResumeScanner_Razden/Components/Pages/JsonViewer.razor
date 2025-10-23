@@ -1,0 +1,275 @@
+﻿@using System.Text.Json
+@inject IJSRuntime JS
+
+<div class="json-viewer-container">
+    <div class="json-files-wrapper">
+        @foreach (var jsonFile in JsonFiles)
+        {
+            <div class="json-file-section">
+                <div class="file-header-bar">
+                    <div class="file-icon">📄</div>
+                    <div class="file-title">@jsonFile.FileName</div>
+                </div>
+                <div class="json-scroll-container">
+                    <code class="json-code">@((MarkupString)FormatJson(jsonFile.Content))</code>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style >
+    .theme-light .json-viewer-container {
+        background: #f5f5f5;
+        color: #333;
+    }
+
+    .json-viewer-container {
+        width: 100%;
+        min-height: 100vh;
+        background: #f5f5f5;
+        padding: 24px;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .json-files-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .json-file-section {
+        background: #ffffff;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .file-header-bar {
+        background: linear-gradient(90deg, #007acc 0%, #00b7ff 100%);
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+    }
+
+    .file-icon {
+        font-size: 18px;
+    }
+
+    .file-title {
+        color: #ffffff;
+        font-weight: 600;
+        font-size: 15px;
+        font-family: 'Consolas', monospace;
+        letter-spacing: 0.3px;
+    }
+
+    .json-scroll-container {
+        width: 75vw;
+        max-height: 500px;
+        overflow-y: auto;
+        overflow-x: auto;
+        background: #fafafa;
+        padding: 16px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+        /* Scrollbar styling (light version) */
+        .json-scroll-container::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .json-scroll-container::-webkit-scrollbar-thumb {
+            background: #cfcfcf;
+            border-radius: 5px;
+        }
+
+            .json-scroll-container::-webkit-scrollbar-thumb:hover {
+                background: #bdbdbd;
+            }
+
+        .json-scroll-container::-webkit-scrollbar-track {
+            background: #f0f0f0;
+        }
+
+    .json-code {
+        font-family: 'Consolas', monospace;
+        font-size: 14px;
+        color: #333333;
+        white-space: pre;
+        display: block;
+        line-height: 1.6;
+    }
+
+    /* Syntax highlighting — Light Mode */
+    .json-key {
+        color: #0451a5; /* Deep blue */
+        font-weight: 500;
+    }
+
+    .json-string {
+        color: #a31515; /* Brick red */
+    }
+
+    .json-number {
+        color: #098658; /* Greenish blue */
+    }
+
+    .json-boolean {
+        color: #0000ff; /* Bright blue */
+        font-weight: 600;
+    }
+
+    .json-null {
+        color: #0000ff;
+        font-style: italic;
+    }
+
+    .json-item {
+        margin-left: 20px;
+    }
+
+    .json-block {
+        margin-left: 20px;
+    }
+
+    .json-toggle {
+        cursor: pointer;
+        color: #666;
+        margin-right: 4px;
+        user-select: none;
+    }
+
+        .json-toggle:hover {
+            color: #000;
+        }
+
+</style>
+
+@code {
+    [Parameter]
+    public List<JsonFileModel> JsonFiles { get; set; } = new();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ = JS.InvokeVoidAsync("jsonViewer.initialize");
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (JsonFiles == null || JsonFiles.Count == 0)
+        {
+            JsonFiles = GetSampleData();
+        }
+    }
+
+    private string FormatJson(object content)
+    {
+        try
+        {
+            JsonElement element;
+            if (content is string str)
+                element = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(str);
+            else
+                element = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(
+                    System.Text.Json.JsonSerializer.Serialize(content)
+                );
+
+            return BuildCollapsibleJson(element, isRoot: true);
+        }
+        catch (Exception ex)
+        {
+            return $"<span style='color:red;'>Error parsing JSON: {ex.Message}</span>";
+        }
+    }
+
+    private string BuildCollapsibleJson(JsonElement element, bool isRoot = false)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                var objContent = string.Join(",<br>", element.EnumerateObject()
+                    .Select(p => $"<div class='json-item'>" +
+                                 $"<span class='json-toggle'>▶</span>" +
+                                 $"<span class='json-key'>\"{p.Name}\"</span>: {BuildCollapsibleJson(p.Value)}</div>"));
+                var objDisplay = isRoot ? "block" : "none";
+                return $"{{<div class='json-block' style='display:{objDisplay};'>{objContent}</div>}}";
+
+            case JsonValueKind.Array:
+                var arrContent = string.Join(",<br>", element.EnumerateArray()
+                    .Select(v => $"<div class='json-item'>{BuildCollapsibleJson(v)}</div>"));
+                var arrDisplay = isRoot ? "block" : "none";
+                return $"[<div class='json-block' style='display:{arrDisplay};'>{arrContent}</div>]";
+
+            case JsonValueKind.String:
+                return $"<span class='json-string'>\"{element.GetString()}\"</span>";
+
+            case JsonValueKind.Number:
+                return $"<span class='json-number'>{element}</span>";
+
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                return $"<span class='json-boolean'>{element}</span>";
+
+            case JsonValueKind.Null:
+                return $"<span class='json-null'>null</span>";
+
+            default:
+                return element.ToString();
+        }
+    }
+
+    private List<JsonFileModel> GetSampleData()
+    {
+        return new List<JsonFileModel>
+        {
+            new JsonFileModel
+            {
+                FileName = "config.json",
+                Content = new
+                {
+                    AppName = "My Blazor Application",
+                    Version = "1.0.0",
+                    Environment = "Production",
+                    Settings = new
+                    {
+                        Theme = "dark",
+                        Language = "en-US",
+                        EnableNotifications = true,
+                        MaxConnections = 100
+                    },
+                    Features = new[] { "authentication", "logging", "caching", "monitoring" }
+                }
+            },
+            new JsonFileModel
+            {
+                FileName = "users.json",
+                Content = new
+                {
+                    Users = new[]
+                    {
+                        new { Id = 1, Name = "John Doe", Email = "john@example.com", Role = "admin", Active = true },
+                        new { Id = 2, Name = "Jane Smith", Email = "jane@example.com", Role = "user", Active = true },
+                        new { Id = 3, Name = "Bob Johnson", Email = "bob@example.com", Role = "user", Active = false }
+                    },
+                    TotalCount = 3,
+                    LastUpdated = DateTime.Now
+                }
+            }
+        };
+    }
+
+    public class JsonFileModel
+    {
+        public string FileName { get; set; } = string.Empty;
+        public object Content { get; set; } = new();
+    }
+}

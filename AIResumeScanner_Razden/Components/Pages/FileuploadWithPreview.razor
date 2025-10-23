@@ -1,0 +1,447 @@
+﻿@page "/fileuploadwithpreview"
+@using System;
+@using System.IO;
+@using Microsoft.AspNetCore.Components.Forms
+@inject IWebHostEnvironment Environment
+@using System.Text;
+@using iTextSharp.text.pdf;
+@using iTextSharp.text.pdf.parser;
+@using DocumentFormat.OpenXml.Packaging;
+@using DocumentFormat.OpenXml.Wordprocessing;
+@using Newtonsoft.Json;
+@using Azure.Storage.Blobs;
+
+
+<PageTitle>File Upload</PageTitle>
+
+<h3>File Upload with Preview</h3>
+<OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
+
+<div class="file-upload-container">
+    <label for="fileInput" class="file-label">Select Files:</label>
+
+    <InputFile id="fileInput" @key="fileInputKey"
+    OnChange="OnFileSelected"
+    multiple
+    class="form-control"
+    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+
+    @if (selectedFiles.Count > 0)
+    {
+        <div class="file-list">
+            @foreach (var file in selectedFiles)
+            {
+                <div class="file-item">
+                    <span class="file-name">@file.Name</span>
+                    <button class="file-remove-btn" @onclick="() => RemoveFile(file)">✖</button>
+                </div>
+            }
+        </div>
+
+        <button class="submit-btn" @onclick="UploadFiles" disabled="@isUploading">
+            @(isUploading ? "Uploading..." : "Submit")
+        </button>
+    }
+
+    @if (!string.IsNullOrEmpty(uploadMessage))
+    {
+        <div class="upload-status @(isUploadSuccess ? "success" : "error")">
+            @uploadMessage
+        </div>
+    }
+</div>
+
+<JsonViewer JsonFiles="@myJsonFiles" />
+
+<style>
+    .file-upload-container {
+    width: 100%;
+    max-width: 600px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    font-family: 'Segoe UI', sans-serif;
+    }
+
+    .file-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+    }
+
+    .form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    }
+
+    .file-list {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    }
+
+    .file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: background 0.2s ease;
+    }
+
+    .file-item:hover {
+    background: #f1faff;
+    }
+
+    .file-name {
+    font-size: 14px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-grow: 1;
+    }
+
+    .file-remove-btn {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    font-size: 16px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    }
+
+    .file-remove-btn:hover {
+    color: #c0392b;
+    }
+
+
+    .submit-btn {
+    margin-top: 15px;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    background-color: #007acc;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    }
+
+    .submit-btn:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+    background-color: #005a9e;
+    }
+
+    .upload-result {
+    margin-top: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    }
+
+</style>
+
+
+@code {
+    private bool showLoader = false;
+    private List<IBrowserFile> selectedFiles = new();
+    private Guid fileInputKey = Guid.NewGuid(); // unique key for InputFile
+    private string? previewUrl;
+    private string? errorMessage;
+    private string? successMessage;
+    private long maxFileSize = 10 * 1024 * 1024; // 10 MB
+    public BlobServiceClient _blobServiceClient;
+    [Inject]
+    public IConfiguration _configuration { get; set; }
+    private bool isUploading = false;
+
+    private string? uploadMessage;
+    private bool isUploadSuccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        // Get the connection string from configuration
+        var azureConnectionString = _configuration.GetSection("AzureBlobStorage")["ConnectionString"];
+        _blobServiceClient = new BlobServiceClient(azureConnectionString);
+    }
+
+
+    private void ClearFile()
+    {
+
+        previewUrl = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    private List<JsonViewer.JsonFileModel> myJsonFiles = new List<JsonViewer.JsonFileModel>();
+
+    private List<JsonViewer.JsonFileModel> myJsonFiles1 = new()
+    {
+        new JsonViewer.JsonFileModel
+        {
+            FileName = "mydata.json",
+            Content = new { Name = "Test", Value = 123 }
+        },
+        new JsonViewer.JsonFileModel
+            {
+                FileName = "config.json",
+                Content = new
+                {
+                    AppName = "My Blazor Application",
+                    Version = "1.0.0",
+                    Settings = new
+                    {
+                        Theme = "dark",
+                        Language = "en",
+                        Notifications = true
+                    },
+                    Features = new[] { "authentication", "logging", "caching" }
+                }
+            },
+            new JsonViewer.JsonFileModel
+            {
+                FileName = "users.json",
+                Content = new
+                {
+                    Users = new[]
+                    {
+                        new { Id = 1, Name = "John Doe", Email = "john@example.com", Role = "admin" },
+                        new { Id = 2, Name = "Jane Smith", Email = "jane@example.com", Role = "user" },
+                        new { Id = 3, Name = "Bob Johnson", Email = "bob@example.com", Role = "user" }
+                    },
+                    TotalCount = 3
+                }
+            },
+            new JsonViewer.JsonFileModel
+            {
+                FileName = "metadata.json",
+                Content = new
+                {
+                    CreatedAt = DateTime.Now.AddDays(-10),
+                    UpdatedAt = DateTime.Now,
+                    Author = "System",
+                    Tags = new[] { "production", "active", "verified" },
+                    Statistics = new
+                    {
+                        TotalRequests = 15420,
+                        ActiveUsers = 245,
+                        AverageResponseTime = "120ms"
+                    }
+                }
+            },
+            new JsonViewer.JsonFileModel
+            {
+                FileName = "database.json",
+                Content = new
+                {
+
+                    ConnectionString = "Server=localhost;Database=MyDb;",
+                    Provider = "SqlServer",
+                    MaxPoolSize = 100,
+                    CommandTimeout = 30,
+                    EnableRetry = true,
+                    RetryCount = 3
+                }
+            }
+    };
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFiles.Clear();
+        showLoader = true;
+        foreach (var file in e.GetMultipleFiles())
+        {
+            selectedFiles.Add(file);
+            if (IsPdfMime(file))
+            {
+                const long maxFileSize = 20 * 1024 * 1024; // 20 MB max size
+
+                using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                byte[] fileBytes = ms.ToArray();
+
+                string base64 = Convert.ToBase64String(fileBytes);
+
+                Console.WriteLine($"Read {file.Name} with size {fileBytes.Length} bytes");
+
+                //Console.WriteLine(ExtractTextFromBase64Pdf(base64));
+                ExtractMetaDataForResume extractMetaDataForResume = new ExtractMetaDataForResume();
+                var metaData = await extractMetaDataForResume.ExtractMetaData(ExtractTextFromBase64Pdf(base64));
+                myJsonFiles.Add(new JsonViewer.JsonFileModel
+                    {
+                        FileName = file.Name,
+                        Content = System.Text.Json.JsonSerializer.Serialize(metaData)
+                    });
+            }
+            else if (IsDocxMime(file))
+            {
+                const long maxFileSize = 20 * 1024 * 1024; // 20 MB max size
+
+                using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                byte[] fileBytes = ms.ToArray();
+
+                string base64 = Convert.ToBase64String(fileBytes);
+
+                Console.WriteLine($"Read {file.Name} with size {fileBytes.Length} bytes");
+                Console.WriteLine($"DOCX file selected: {file.Name}");
+                //Console.WriteLine(ReadWordText(ms));
+                ExtractMetaDataForResume extractMetaDataForResume = new ExtractMetaDataForResume();
+                var metaData = await extractMetaDataForResume.ExtractMetaData(ReadWordText(ms));
+                //MetadataClass myDeserializedClass = JsonConvert.DeserializeObject<MetadataClass>(metaData);
+
+
+
+                myJsonFiles.Add(new JsonViewer.JsonFileModel
+                    {
+                        FileName = file.Name ,
+                        Content =  System.Text.Json.JsonSerializer.Serialize(metaData)
+                    });
+
+
+            }
+
+        }
+        showLoader = false;
+        StateHasChanged();
+    }
+
+
+
+
+    bool IsPdfMime(IBrowserFile file) =>
+    file.ContentType == "application/pdf";
+
+    bool IsDocxMime(IBrowserFile file) =>
+        file.ContentType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    private void RemoveFile(IBrowserFile file)
+    {
+        selectedFiles.Remove(file);
+
+        // 🔄 Refresh InputFile to allow re-uploading same file name again
+        fileInputKey = Guid.NewGuid();
+    }
+
+    private async Task<byte[]> ReadFileBytesAsync(IBrowserFile file)
+    {
+        const long maxFileSize = 20 * 1024 * 1024; // 20 MB limit, adjust as needed
+
+        using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        return ms.ToArray();  // raw file bytes
+    }
+
+    public string ExtractTextFromBase64Pdf(string base64Pdf)
+    {
+        byte[] pdfBytes = Convert.FromBase64String(base64Pdf);
+
+        using var ms = new MemoryStream(pdfBytes);
+        using var reader = new PdfReader(ms);
+        var text = new StringBuilder();
+
+        for (int i = 1; i <= reader.NumberOfPages; i++)
+        {
+            string pageText = PdfTextExtractor.GetTextFromPage(reader, i);
+            text.AppendLine(pageText);
+        }
+        return text.ToString();
+    }
+
+
+
+    public static string ReadWordText(Stream docxStream)
+    {
+        StringBuilder text = new StringBuilder();
+        using (var wordDoc = WordprocessingDocument.Open(docxStream, false))
+        {
+            var body = wordDoc.MainDocumentPart.Document.Body;
+            text.Append(body.InnerText);
+        }
+        return text.ToString();
+    }
+
+    private async Task UploadFiles()
+    {
+        isUploading = true;
+        uploadMessage = null;
+        showLoader = true;
+        try{
+            var containerClient = _blobServiceClient.GetBlobContainerClient("resumes");
+            await containerClient.CreateIfNotExistsAsync();
+            var uploadedFiles = new List<object>();
+
+            foreach (var file in selectedFiles)
+            {
+                var blobClient = containerClient.GetBlobClient(file.Name);
+                using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+                var response = await blobClient.UploadAsync(stream, overwrite: true);
+
+                if (response.GetRawResponse().Status == 201) // 201 = Created
+                {
+                    Console.WriteLine($" File uploaded successfully: {file.Name}");
+                    uploadedFiles.Add(new { FileName = file.Name, BlobUrl = blobClient.Uri });
+
+                }
+                else
+                {
+                    Console.WriteLine($" Unexpected status: {response.GetRawResponse().Status}");
+
+                }
+
+
+
+            }
+            isUploadSuccess = true;
+            uploadMessage = " Files uploaded successfully!";
+            myJsonFiles.Clear();
+            selectedFiles.Clear();
+            showLoader = false;
+
+        }catch(Exception ex){
+            isUploadSuccess = false;
+            uploadMessage = $" Upload failed: {ex.Message}";
+            showLoader = false;
+            Console.WriteLine($"Upload failed: {ex.Message}");
+        }
+        finally{
+            isUploading = false;
+        }
+    }
+}
+
