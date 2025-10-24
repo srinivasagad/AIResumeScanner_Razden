@@ -53,7 +53,8 @@ namespace AIResumeScanner_Razden.Services
                 Instructions = @"You are a helpful assistant with access to a knowledge base through Azure AI Search.
                 When users ask questions, use the hybrid search function to find relevant information.
                 Always cite your sources and provide accurate information based on the search results.
-                If search results are empty, say you don't have information on that topic.",
+                If search results are empty, say you don't have information on that topic.
+                When providing any HTTPS link, always format it as an HTML anchor tag, e.g., <a href=""https://example.com"" target=""_blank"" >source</a>. ",
                 Kernel = _kernel,
                 Arguments = new KernelArguments(new AzureOpenAIPromptExecutionSettings
                 {

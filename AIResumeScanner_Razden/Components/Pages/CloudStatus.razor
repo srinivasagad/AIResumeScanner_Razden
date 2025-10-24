@@ -1,58 +1,20 @@
 ﻿@page "/cloudstatus"
 
-@inject SignalRNotificationService signalRNotificationService
-@inject HttpClient Http
+
 
 
 
 <h3>Azure Dashboard</h3>
 
-<p>Notification count: @notifications.Count</p>
-<ul>
-
-    @foreach (var notification in notifications)
-    {
-        <li>@notification.Title: @notification.Message</li>
-    }
-</ul>
 
 @code {
-    private List<SignalRNotificationMessage> notifications = new();
+
 
     protected override async Task OnInitializedAsync()
     {
-        // Get connection info from negotiate endpoint
-        var connectionInfo = await Http.PostAsJsonAsync("http://localhost:7283/api/negotiate", new { });
-        var info = await connectionInfo.Content.ReadFromJsonAsync<SignalRConnectionInfo>();
-        // Use named method for event handler
-        signalRNotificationService.OnNotificationReceived += HandleNotificationReceived;
-
-        await signalRNotificationService.StartAsync(info.Url, info.AccessToken);
-
-        Console.WriteLine("SignalR connection state: " + signalRNotificationService.ConnectionState);
-    }
-
-    private Task HandleNotificationReceived(SignalRNotificationMessage notification)
-    {
-
-        return  InvokeAsync(async () =>
-        {
-            try
-            {
-                     await InvokeAsync(() =>
-                     {
-                         notifications.Add(notification);
-                         Console.WriteLine($"Notification count: {notifications.Count}");
-                         StateHasChanged();
-                     });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error in UI update: " + ex.Message);
-            }
-        });
-
       
     }
+
+  
   
 }
