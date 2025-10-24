@@ -177,7 +177,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-
         // Get the connection string from configuration
         var azureConnectionString = _configuration.GetSection("AzureBlobStorage")["ConnectionString"];
         _blobServiceClient = new BlobServiceClient(azureConnectionString);
