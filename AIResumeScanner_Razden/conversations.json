@@ -277,5 +277,53 @@
       }
     ],
     "LastUpdated": "2025-10-21T12:39:37.5214217Z"
+  },
+  "7c334d01-7410-4336-9bbd-fa92e464dcc3": {
+    "SessionId": "7c334d01-7410-4336-9bbd-fa92e464dcc3",
+    "Messages": [
+      {
+        "Role": "user",
+        "Content": "select top 10 profiles",
+        "Timestamp": "2025-10-24T10:10:06.0560862Z"
+      },
+      {
+        "Role": "assistant",
+        "Content": "Here are the top profiles based on your request:\n\n1. **Dr. Sarah Chen**  \n   - Principal Java Architect \u0026 AI Engineering Lead  \n   - 13\u002B years in enterprise applications, cloud-native architectures, and AI integration.  \n   - Based in Seattle, WA.  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/6ba58674-e5c6-4b09-acd6-4c1804e71bc0\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\n2. **Pradeep Kumar Jha**  \n   - 11 years in software development, .NET Core, MVC, Web API, Azure, microservices.  \n   - Contact: pkjsoftware@gmail.com, \u002B91-7000436508  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/9c12f49a-6de9-43c0-88ae-17b63b27d235\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\n3. **Jaya Prakash P**  \n   - 9\u002B years as Full Stack .NET Developer; currently at SLK Software Pvt Ltd.  \n   - Based in Bengaluru, India.  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/1c14f5c8-4ce7-48c3-8c28-81713b28d648\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\n4. **Alex Johnson**  \n   - Senior Java Developer with 6\u002B years designing scalable enterprise applications.  \n   - Based in San Francisco, CA.  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/c3ef1143-76ea-4188-8170-e291f5c79f9e\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\n5. **Rajakumar Gowripatnapu**  \n   - Microsoft Dot Net Developer, Tech Mahindra; 11\u002B years in Microsoft technologies.  \n   - Contact: rajkumar.gowripatnapu@gmail.com, \u002B91-7675854587  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/818cc9ee-bae4-4ca6-a2b5-47d733f1eb46\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\n6. **Alok Kumar**  \n   - 10\u002B years as .NET Fullstack Developer (Angular, React, .NET core).  \n   - Contact: alokgupta86@gmail.com, \u002B91-9990438164  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/0cd5e538-7762-4e2b-b308-ab4ed4539f95\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\n7. **Manikandan S**  \n   - 9\u002B years in .NET technologies, including ASP.NET, MVC, C#, Angular, SQL Server.  \n   - Based in India.  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/9534c786-ccde-4157-9ba6-229edc8f5fe9\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\n8. **S. K Vijaya Laxmi**  \n   - Talent Acquisition Associate Manager - Recruitment; 13\u002B years in IT Recruitment.  \n   - Contact: vijaylaxmi.vlk@gmail.com  \n   - \u003Ca href=\u0022https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/732013cc-2990-4412-a23e-6d3c061f11a5\u0022 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E\n\nThe search returned 8 profiles. If you need more, please let me know!",
+        "Timestamp": "2025-10-24T10:10:13.8354022Z"
+      }
+    ],
+    "LastUpdated": "2025-10-24T10:10:13.8354041Z"
+  },
+  "0ea4ccb3-115d-416f-bbf6-8552260b854a": {
+    "SessionId": "0ea4ccb3-115d-416f-bbf6-8552260b854a",
+    "Messages": [
+      {
+        "Role": "user",
+        "Content": "select top 10 profiles",
+        "Timestamp": "2025-10-24T10:10:31.863521Z"
+      },
+      {
+        "Role": "assistant",
+        "Content": "Here are the top 8 professional profiles retrieved:\n\n1. **Dr. Sarah Chen** \u2013 Principal Java Architect \u0026 AI Engineering Lead (13\u002B years experience, Seattle, WA)\n   - Led digital transformation, architected AI-powered engines, published technical papers.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/6ba58674-e5c6-4b09-acd6-4c1804e71bc0)\n\n2. **Pradeep Kumar Jha** \u2013 11 years in Software Development (specializes in .NET, Azure, Microservices, API Gateway)\n   - Handled scalable web and desktop applications, Azure Open AI integration.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/9c12f49a-6de9-43c0-88ae-17b63b27d235)\n\n3. **Alex Johnson** \u2013 Senior Java Developer (6\u002B years, San Francisco, CA)\n   - Specializes in Spring framework, microservices, and cloud technologies.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/c3ef1143-76ea-4188-8170-e291f5c79f9e)\n\n4. **Jaya Prakash P** \u2013 Full Stack .NET Developer (9\u002B years, SLK Software, Bengaluru)\n   - Delivers high-quality software solutions and end-to-end project experience.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/1c14f5c8-4ce7-48c3-8c28-81713b28d648)\n\n5. **Manikandan S** \u2013 Dotnet Tech Lead (9\u002B years, expertise in .NET Core, Angular 14)\n   - Experience in ASP.NET, MVC, C#, SQL, web API, with Agile methodologies.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/9534c786-ccde-4157-9ba6-229edc8f5fe9)\n\n6. **Rajakumar Gowripatnapu** \u2013 Microsoft .NET Developer (11\u002B years, Tech Mahindra)\n   - Skilled in ASP.NET, MVC, SQL Server, web API, C#.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/818cc9ee-bae4-4ca6-a2b5-47d733f1eb46)\n\n7. **Alok Kumar** \u2013 .NET Fullstack Developer (10\u002B years, Angular, React, .NET Core)\n   - Broad IT experience, strong in both frontend and backend technologies.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/0cd5e538-7762-4e2b-b308-ab4ed4539f95)\n\n8. **S.K. Vijaya Laxmi** \u2013 Talent Acquisition Manager (13\u002B years, IT recruitment)\n   - Expert in hiring, HR operations, technical recruitment reporting.\n   - [Source](https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/732013cc-2990-4412-a23e-6d3c061f11a5)\n\nIf you need further details for any specific profile, please let me know!",
+        "Timestamp": "2025-10-24T10:10:39.3351149Z"
+      }
+    ],
+    "LastUpdated": "2025-10-24T10:10:39.3351167Z"
+  },
+  "19a2821e-838e-4e6d-956c-1a6071dcf6a1": {
+    "SessionId": "19a2821e-838e-4e6d-956c-1a6071dcf6a1",
+    "Messages": [
+      {
+        "Role": "user",
+        "Content": "show alok kumar profile",
+        "Timestamp": "2025-10-24T10:13:20.3032709Z"
+      },
+      {
+        "Role": "assistant",
+        "Content": "Here is the profile summary for Alok Kumar:\n\n- Name: Alok Kumar\n- Email: alokgupta86@gmail.com\n- Contact: \u002B91-9990438164\n- Profession: .NET Fullstack Developer\n\n**Professional Objective:**  \nLooking for a challenging career in an organization that will provide an opportunity to apply my skills and experience for the advancement of the organization and my continued growth.\n\n**Skills and Experience:**\n- Expertise in .NET Core using C# language\n- Diversified experience in designing, scripting, and performance tuning of Microsoft SQL Server\n- Strong knowledge of OOPS concepts\n- Experience in developing web applications using N-Tier architecture\n- Skilled in closing bugs with permanent solutions\n- Proficient in designing optimized solutions for various business requirements and implementing updated technologies\n\n**Notable Projects:**\n- ArtistNow (Feb 2014 - Sept 2015): Developed to create profiles for different people based on their talents such as singing, dancing, modeling, musician, photographer, and actors.\n\nFor more details, you can visit the original source:  \n\u003Ca href=\u0027https://resumesmetadatajson.blob.core.windows.net/resumemetadatajson/0cd5e538-7762-4e2b-b308-ab4ed4539f95\u0027 target=\u0022_blank\u0022\u003ESource\u003C/a\u003E",
+        "Timestamp": "2025-10-24T10:13:28.7109971Z"
+      }
+    ],
+    "LastUpdated": "2025-10-24T10:13:28.7109986Z"
   }
 }

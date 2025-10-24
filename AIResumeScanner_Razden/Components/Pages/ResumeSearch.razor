@@ -7,6 +7,7 @@
         <h3>Profile Search</h3>
         <button class="clear-btn" @onclick="ClearHistory">Clear All</button>
     </div>
+<OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
 
     <div class="chat-messages">
         @if (chatHistory.Count == 0)
@@ -64,6 +65,7 @@
 </div>
 
 @code {
+    private bool showLoader = false;
     private List<Models.ChatMessage> chatHistory = new();
     private string currentMessage = "";
     private string chatResponse = string.Empty;
@@ -87,7 +89,8 @@
     }
 
     private async Task HandleSubmit()
-    {
+    {        
+        showLoader = true;
         // Create agent
         var agent = new SearchAgent(
             azureOpenAiEndpoint,
@@ -112,7 +115,7 @@
         Console.Write("You: ");
         var input = currentMessage;
 
-        if (string.IsNullOrWhiteSpace(input))
+        if (string.IsNullOrWhiteSpace(input) || string.IsNullOrEmpty(input))
             return;
 
         if (input.ToLower() == "stream")
@@ -134,6 +137,7 @@
             return;
         }
 
+        currentMessage = string.Empty;
         if (input.ToLower() == "clearhistory")
         {
             agent.ClearConversationHistory();
@@ -161,6 +165,7 @@
             Console.WriteLine($"\nError: {ex.Message}");
             Console.WriteLine($"Stack: {ex.StackTrace}\n");
         }
+        showLoader = false;
 
     }
 
