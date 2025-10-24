@@ -43,7 +43,7 @@ namespace AIResumeScanner_Razden.Services
                 var searchOptions = new SearchOptions
                 {
                     Size = top,
-                    Select = { "Id", "Title", "chunks", "Content", "metadata" },
+                    Select = { "Id", "Title", "chunks", "Content", "fileName" },
                     IncludeTotalCount = true,
                     HighlightFields = { "chunks", "Content" },
                     QueryType = SearchQueryType.Semantic,
@@ -115,7 +115,8 @@ namespace AIResumeScanner_Razden.Services
                     formatted.AppendLine($"  Title: {result.Title}");
 
                 if (!string.IsNullOrEmpty(result.FileName))
-                    formatted.AppendLine($"  File Name: {result.FileName}");
+                    //formatted.AppendLine($"  File Name: {result.FileName}");
+                    formatted.AppendLine($"  FileName Url: <a href='{result.FileName}' >Source</a>");
 
                 if (!string.IsNullOrEmpty(result.Category))
                     formatted.AppendLine($"  Category: {result.Category}");
@@ -166,8 +167,8 @@ namespace AIResumeScanner_Razden.Services
                 }
 
                 if (!string.IsNullOrEmpty(result.MetadataUrl))
-                   // formatted.AppendLine($"  Metadata Url: {result.MetadataUrl}");
-                formatted.AppendLine($"  Metadata Url: <a href='{result.MetadataUrl}' >Source</a>");
+                    formatted.AppendLine($"  Metadata Url: {result.MetadataUrl}");
+               
 
                 formatted.AppendLine();
             }

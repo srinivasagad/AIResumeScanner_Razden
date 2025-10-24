@@ -54,7 +54,21 @@ namespace AIResumeScanner_Razden.Services
                 When users ask questions, use the hybrid search function to find relevant information.
                 Always cite your sources and provide accurate information based on the search results.
                 If search results are empty, say you don't have information on that topic.
-                When providing any HTTPS link, always format it as an HTML anchor tag, e.g., <a href=""https://example.com"" target=""_blank"" >source</a>. ",
+
+                CRITICAL LINK FORMATTING RULE - YOU MUST FOLLOW THIS:
+                - NEVER display raw URLs (e.g., https://example.com)
+                - ALWAYS convert ALL URLs into HTML anchor tags
+                - MANDATORY format: <a href=""https://example.com"" target=""_blank"">source</a>
+                - This rule applies to EVERY URL in your response, without exception
+                - Even if the URL is already provided, you MUST wrap it in anchor tags
+
+                Examples:
+                ❌ WRONG: https://example.com/document.pdf
+                ❌ WRONG: Source: https://example.com
+                ❌ WRONG: Source(https://example.com)
+                ✅ CORRECT: <a href=""https://example.com/sample.pdf"" target=""_blank"">source</a>
+                ✅ CORRECT: <a href=""https://example.com"" target=""_blank"">source</a>
+                ",
                 Kernel = _kernel,
                 Arguments = new KernelArguments(new AzureOpenAIPromptExecutionSettings
                 {
