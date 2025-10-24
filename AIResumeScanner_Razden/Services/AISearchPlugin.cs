@@ -166,7 +166,8 @@ namespace AIResumeScanner_Razden.Services
                 }
 
                 if (!string.IsNullOrEmpty(result.MetadataUrl))
-                    formatted.AppendLine($"  Metadata Url: {result.MetadataUrl}");
+                   // formatted.AppendLine($"  Metadata Url: {result.MetadataUrl}");
+                formatted.AppendLine($"  Metadata Url: <a href='{result.MetadataUrl}' >Source</a>");
 
                 formatted.AppendLine();
             }
