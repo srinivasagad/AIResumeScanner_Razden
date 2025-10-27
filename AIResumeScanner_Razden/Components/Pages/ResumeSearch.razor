@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @using System.Text.Json
 @using System.Web
 
@@ -32,7 +32,8 @@
                         }
                         else
                         {
-                            @((MarkupString)msg.Content.Replace("\n", "<br />"))
+                            @* @((MarkupString)msg.Content.Replace("\n", "<br />")) *@
+                            @FormatMessage(msg.Content)
                         }
                     </div>
                     @* @if (!msg.IsUser && msg.Sources != null && msg.Sources.Any())
@@ -64,6 +65,19 @@
     </div>
 </div>
 
+@if (showPopup)
+{
+    <div class="popup-overlay" @onclick="ClosePopup">
+        <div class="popup-content" @onclick:stopPropagation>
+            <div class="popup-header">
+                <h4>Document Preview</h4>
+                <button class="close-btn" @onclick="ClosePopup">✖</button>
+            </div>
+            <iframe src="@popupUrl" width="100%" height="600px" frameborder="0"></iframe>           
+        </div>
+    </div>
+}
+
 @code {
     private bool showLoader = false;
     private List<Models.ChatMessage> chatHistory = new();
@@ -74,18 +88,75 @@
     private string azureOpenAiApiKey = "BxUQYM8ND9UR2q3WqFrk2YlyHR4NHCG2ORy6xpublVSY4WIl3TwYJQQJ99BJACYeBjFXJ3w3AAABACOGeGiz";
     private string chatDeploymentName = "gpt-4.1"; // Your deployment name for chat
     private string embeddingDeploymentName = "text-embedding-ada-002"; // Your deployment name for embeddings
-
+    private bool showPopup = false;
+    private string popupUrl = string.Empty;
     // Azure AI Search Configuration
     private string searchEndpoint = "https://resumeaisearchstore.search.windows.net";
     private string searchIndexName = "resumefieldssearchindex";
     private string searchApiKey = "4psgmJYJRx5OdFgCXrkcPJRhYsbH1t3hQIVhcML2MHAzSeCSOFvJ";
 
     private string sessionId = Guid.NewGuid().ToString();
+    [Inject] IJSRuntime JS { get; set; } = default!;
+    private DotNetObjectReference<ResumeSearch>? dotnetHelper;
 
     protected override void OnInitialized()
     {
         // Load sample data
         //LoadSampleData();
+    }
+
+    [JSInvokable]
+    public void OpenPopupFromJs(string url)
+    {
+        OpenPopup(url);
+        StateHasChanged();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotnetHelper = DotNetObjectReference.Create(this);
+            JS.InvokeVoidAsync("registerPopupInterop", dotnetHelper);
+        }
+    }
+
+    private void OpenPopup(string url)
+    {
+        if (url.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            popupUrl = url; // show directly
+        }
+        else if (url.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) ||
+                 url.EndsWith(".doc", StringComparison.OrdinalIgnoreCase))
+        {            
+            popupUrl = $"https://view.officeapps.live.com/op/embed.aspx?src={Uri.EscapeDataString(url)}";
+        }
+        else
+        {            
+            popupUrl = url;
+        }
+
+        showPopup = true;
+    }
+
+    private void ClosePopup()
+    {
+        popupUrl = string.Empty;
+        showPopup = false;
+    }
+
+    private MarkupString FormatMessage(string content)
+    {
+        string updated = content.Replace("\n", "<br />");
+        
+        updated = System.Text.RegularExpressions.Regex.Replace(
+            updated,
+            "<a href=\"(.*?)\" target=\"_blank\">source</a>",
+            "<button class='popup-btn' onclick=\"dotnetHelper.invokeMethodAsync('OpenPopupFromJs', '$1')\">View Profile</button>"
+        );
+
+        return new MarkupString(updated);
     }
 
     private async Task HandleSubmit()
@@ -375,4 +446,63 @@
         background: #ccc;
         cursor: not-allowed;
     }
+
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .popup-content {
+        background: white;
+        border-radius: 8px;
+        width: 80%;
+        max-width: 900px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        overflow: hidden;
+    }
+
+    .popup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 16px;
+        background: #007bff;
+        color: white;
+    }
+
+    .close-btn {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    .popup-btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .popup-btn:hover {
+        background-color: #0056b3;
+    }
+
 </style>
+
+<script>
+    window.registerPopupInterop = (dotnetHelper) => {
+        window.dotnetHelper = dotnetHelper;
+    };
+</script>
