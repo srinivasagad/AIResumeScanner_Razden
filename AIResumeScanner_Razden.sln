@@ -5,6 +5,8 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIResumeScanner_Razden", "AIResumeScanner_Razden\AIResumeScanner_Razden.csproj", "{CA5D9679-74A9-4FF1-9B9D-469D4B454BAE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtractAndUploadToAISearchFunc", "ExtractAndUploadToAISearchFunc\ExtractAndUploadToAISearchFunc.csproj", "{CCC868BD-C670-6C88-E767-16BB5AD26A88}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,8 +17,15 @@ Global
 		{CA5D9679-74A9-4FF1-9B9D-469D4B454BAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CA5D9679-74A9-4FF1-9B9D-469D4B454BAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CA5D9679-74A9-4FF1-9B9D-469D4B454BAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CCC868BD-C670-6C88-E767-16BB5AD26A88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CCC868BD-C670-6C88-E767-16BB5AD26A88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CCC868BD-C670-6C88-E767-16BB5AD26A88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CCC868BD-C670-6C88-E767-16BB5AD26A88}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B4A37EAC-4CC6-4CAD-9CDD-5660DECE0D93}
 	EndGlobalSection
 EndGlobal
