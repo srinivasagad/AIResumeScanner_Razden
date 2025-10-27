@@ -16,8 +16,8 @@ namespace AIResumeScanner_Razden.Services
 {
     public class AISearchPlugin
     {
-        
-    private readonly SearchClient _searchClient;
+
+        private readonly SearchClient _searchClient;
         private readonly string _embeddingModel;
 
         public AISearchPlugin(string endpoint, string indexName, string apiKey, string embeddingModel = "text-embedding-ada-002")
@@ -70,13 +70,13 @@ namespace AIResumeScanner_Razden.Services
 
                 return FormatSearchResults(response);
 
-               
+
             }
             catch (Exception ex)
             {
                 return $"Search error: {ex.Message}";
             }
-        }       
+        }
 
         public async Task<float[]> GenerateEmbedding(string text)
         {
@@ -102,7 +102,7 @@ namespace AIResumeScanner_Razden.Services
             return Array.Empty<float>();
         }
 
-        private string FormatSearchResults(List<SearchResultModel> results, long totalCount)
+        private string FormatSearchResults1(List<SearchResultModel> results, long totalCount)
         {
             var formatted = new StringBuilder();
             formatted.AppendLine($"Found {totalCount} results:\n");
@@ -168,7 +168,7 @@ namespace AIResumeScanner_Razden.Services
 
                 if (!string.IsNullOrEmpty(result.MetadataUrl))
                     formatted.AppendLine($"  Metadata Url: {result.MetadataUrl}");
-               
+
 
                 formatted.AppendLine();
             }
@@ -273,5 +273,144 @@ namespace AIResumeScanner_Razden.Services
             var parsedResults = ParseSearchResults(results);
             return FormatSearchResults(parsedResults, results.TotalCount ?? 0);
         }
+
+        private string FormatSearchResults(List<SearchResultModel> results, long totalCount)
+        {
+            var formatted = new StringBuilder();
+            formatted.AppendLine($"🔍 Found {totalCount} relevant results\n");
+            formatted.AppendLine("═══════════════════════════════════════════════════════\n");
+
+            foreach (var result in results)
+            {
+                // Calculate star rating based on reranker score or search score
+                string starRating = GetStarRating(result.RerankerScore ?? result.SearchScore ?? 0);
+
+                formatted.AppendLine($"📄 Result #{result.Rank} {starRating}");
+                formatted.AppendLine("───────────────────────────────────────────────────────");
+
+                if (!string.IsNullOrEmpty(result.Title))
+                    formatted.AppendLine($"📌 Title: {result.Title}");
+
+                //if (!string.IsNullOrEmpty(result.FileName))
+                //    formatted.AppendLine($"📁 File: {result.FileName}");
+
+                if (!string.IsNullOrEmpty(result.Category))
+                    formatted.AppendLine($"🏷️  Category: {result.Category}");
+
+                if (result.Skills.Any())
+                    formatted.AppendLine($"💼 Skills: {string.Join(", ", result.Skills)}");
+
+                // Display scores with visual indicators
+                if (result.RerankerScore.HasValue)
+                {
+                    string scoreBar = GetScoreBar(result.RerankerScore.Value);
+                    formatted.AppendLine($"🎯 Relevance: {scoreBar} ({result.RerankerScore.Value:F2})");
+                }
+                else if (result.SearchScore.HasValue)
+                {
+                    string scoreBar = GetScoreBar(result.SearchScore.Value);
+                    formatted.AppendLine($"🎯 Score: {scoreBar} ({result.SearchScore.Value:F2})");
+                }
+
+                // Semantic captions with highlighting
+                if (result.SemanticCaptions.Any())
+                {
+                    formatted.AppendLine($"\n💡 Key Insights:");
+                    foreach (var caption in result.SemanticCaptions.Take(2))
+                    {
+                        formatted.AppendLine($"   ▸ {caption.Text}");
+                    }
+                }
+
+                // Content preview
+                if (!string.IsNullOrEmpty(result.ContentPreview))
+                {
+                    formatted.AppendLine($"\n📝 Preview:");
+                    formatted.AppendLine($"   {TruncateText(result.ContentPreview, 200)}");
+                }
+
+                // Chunks with better formatting
+                if (result.Chunks.Any())
+                {
+                    formatted.AppendLine($"\n📚 Content Sections ({result.TotalChunks} total):");
+                    for (int i = 0; i < Math.Min(3, result.Chunks.Count); i++)
+                    {
+                        formatted.AppendLine($"   {i + 1}. {TruncateText(result.ChunkPreviews[i], 150)}");
+                    }
+                    if (result.TotalChunks > 3)
+                        formatted.AppendLine($"   ⋯ and {result.TotalChunks - 3} more sections");
+                }
+
+                // Highlights
+                if (result.Highlights.Any())
+                {
+                    formatted.AppendLine($"\n✨ Matched Terms:");
+                    foreach (var highlight in result.Highlights.Take(2))
+                    {
+                        foreach (var value in highlight.Value.Take(2))
+                        {
+                            formatted.AppendLine($"   • {value}");
+                        }
+                    }
+                }
+
+
+
+                // fileName URL
+                if (!string.IsNullOrEmpty(result.FileName))
+                    formatted.AppendLine($"\n🔗 Source: <a href=\"{result.FileName}\" target=\"_blank\">Source</a>");
+
+                formatted.AppendLine("\n═══════════════════════════════════════════════════════\n");
+            }
+
+            return formatted.ToString();
+        }
+
+        // Helper method to generate star rating based on score
+        private string GetStarRating(double score)
+        {
+            // Normalize score to 0-5 stars
+            // Adjust thresholds based on your scoring system
+            int stars;
+
+            if (score >= 3.5) stars = 5;
+            else if (score >= 2.8) stars = 4;
+            else if (score >= 2.0) stars = 3;
+            else if (score >= 1.2) stars = 2;
+            else stars = 1;
+
+            return new string('⭐', stars);
+        }
+
+        // Helper method to create visual score bar
+        private string GetScoreBar(double score)
+        {
+            // Create a visual bar (normalize to 0-10 scale)
+            int normalizedScore = (int)Math.Min(Math.Max(score * 2.5, 0), 10);
+            int filled = normalizedScore;
+            int empty = 10 - filled;
+
+            return $"{RepeatString("█", filled)}{RepeatString("░", empty)}";
+        }
+
+        // Helper method to truncate text with ellipsis
+        private string TruncateText(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+                return text;
+
+            return text.Substring(0, maxLength).TrimEnd() + "...";
+        }
+
+
+
+        // Helper method to repeat a string
+        private string RepeatString(string text, int count)
+        {
+            if (count <= 0) return string.Empty;
+            return string.Concat(Enumerable.Repeat(text, count));
+        }
+
+
     }
 }

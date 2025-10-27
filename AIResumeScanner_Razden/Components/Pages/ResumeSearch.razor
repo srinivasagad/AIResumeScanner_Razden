@@ -32,8 +32,8 @@
                         }
                         else
                         {
-                            @* @((MarkupString)msg.Content.Replace("\n", "<br />")) *@
-                            @FormatMessage(msg.Content)
+                             @((MarkupString)msg.Content.Replace("\n", "<br />")) 
+                         @*    @FormatMessage(msg.Content) *@
                         }
                     </div>
                     @* @if (!msg.IsUser && msg.Sources != null && msg.Sources.Any())
