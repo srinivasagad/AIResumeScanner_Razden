@@ -1,20 +1,459 @@
 ﻿@page "/cloudstatus"
 
+@page "/profile-graph"
+@using Radzen
+@using Radzen.Blazor
+@* @inject AzureAISearchGrounding SearchService *@
 
+<RadzenStack Gap="1rem" Style="padding: 2rem; max-width: 1400px; margin: 0 auto;">
 
+    @* Header with Search *@
+    <RadzenCard>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center">
+            <RadzenIcon Icon="search" Style="font-size: 2rem; color: #667eea;" />
+            <RadzenTextBox @bind-Value="@searchQuery"
+                           Placeholder="Search for skills, experience, or keywords..."
+                           Style="flex: 1;" />
+            <RadzenButton Text="Search Profiles"
+                          Icon="psychology"
+                          Click="@SearchProfiles"
+                          ButtonStyle="ButtonStyle.Primary"
+                          IsBusy="@isLoading" />
+        </RadzenStack>
+    </RadzenCard>
 
+    @if (isLoading)
+    {
+        <RadzenCard>
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" Style="padding: 3rem;">
+                <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+                <RadzenText TextStyle="TextStyle.H6">Searching profiles...</RadzenText>
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else if (profileData.Any())
+    {
+        @* Statistics Cards *@
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <RadzenStack AlignItems="AlignItems.Center">
+                        <RadzenIcon Icon="person" Style="font-size: 3rem;" />
+                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@profileData.Count</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2">Total Profiles</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
 
-<h3>Azure Dashboard</h3>
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                    <RadzenStack AlignItems="AlignItems.Center">
+                        <RadzenIcon Icon="code" Style="font-size: 3rem;" />
+                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@totalSkills</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2">Unique Skills</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
 
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                    <RadzenStack AlignItems="AlignItems.Center">
+                        <RadzenIcon Icon="star" Style="font-size: 3rem;" />
+                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@averageScore.ToString("F1")</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2">Avg Match Score</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+
+            <RadzenColumn Size="12" SizeMD="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+                    <RadzenStack AlignItems="AlignItems.Center">
+                        <RadzenIcon Icon="workspace_premium" Style="font-size: 3rem;" />
+                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@experiencedProfiles</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2">5+ Years Exp</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+
+        @* Chart Section *@
+        <RadzenRow Gap="1rem">
+            @* Skills Distribution Chart *@
+            <RadzenColumn Size="12" SizeLG="6">
+                <RadzenCard>
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem;">
+                        🎯 Top Skills Distribution
+                    </RadzenText>
+                    <RadzenChart>
+                        <RadzenColumnSeries Data="@skillsData"
+                                            CategoryProperty="Skill"
+                                            ValueProperty="Count"
+                                            Title="Profiles"
+                                            Fill="#667eea" />
+                        <RadzenValueAxis>
+                            <RadzenGridLines Visible="true" />
+                            <RadzenAxisTitle Text="Number of Profiles" />
+                        </RadzenValueAxis>
+                        <RadzenCategoryAxis>
+                            <RadzenAxisTitle Text="Skills" />
+                        </RadzenCategoryAxis>
+                    </RadzenChart>
+                </RadzenCard>
+            </RadzenColumn>
+
+            @* Match Score Distribution *@
+            <RadzenColumn Size="12" SizeLG="6">
+                <RadzenCard>
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem;">
+                        📊 Match Score Distribution
+                    </RadzenText>
+                    <RadzenChart>
+                        <RadzenLineSeries Data="@scoreDistribution"
+                                          CategoryProperty="Range"
+                                          ValueProperty="Count"
+                                          Title="Profiles"
+                                          Smooth="true"
+                                          Stroke="#f5576c"
+                                          StrokeWidth="3" />
+                        <RadzenAreaSeries Data="@scoreDistribution"
+                                          CategoryProperty="Range"
+                                          ValueProperty="Count"
+                                          Fill="rgba(245, 87, 108, 0.3)" />
+                        <RadzenValueAxis>
+                            <RadzenGridLines Visible="true" />
+                            <RadzenAxisTitle Text="Number of Profiles" />
+                        </RadzenValueAxis>
+                        <RadzenCategoryAxis>
+                            <RadzenAxisTitle Text="Score Range" />
+                        </RadzenCategoryAxis>
+                    </RadzenChart>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+
+        @* Pie Chart and Donut Chart *@
+        <RadzenRow Gap="1rem">
+            @* Experience Level Distribution *@
+            <RadzenColumn Size="12" SizeLG="6">
+                <RadzenCard>
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem;">
+                        💼 Experience Level Distribution
+                    </RadzenText>
+                    <RadzenChart>
+                        <RadzenPieSeries Data="@experienceData"
+                                         CategoryProperty="Level"
+                                         ValueProperty="Count"
+                                         Title="Profiles">
+                            <RadzenSeriesDataLabels Visible="true" />
+                        </RadzenPieSeries>
+                        <RadzenLegend Position="LegendPosition.Right" />
+                    </RadzenChart>
+                </RadzenCard>
+            </RadzenColumn>
+
+            @* Category Distribution *@
+            <RadzenColumn Size="12" SizeLG="6">
+                <RadzenCard>
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem;">
+                        🏷️ Profile Categories
+                    </RadzenText>
+                    <RadzenChart>
+                        <RadzenDonutSeries Data="@categoryData"
+                                           CategoryProperty="Category"
+                                           ValueProperty="Count"
+                                           InnerRadius="0.5">
+                            <RadzenSeriesDataLabels Visible="true" />
+                        </RadzenDonutSeries>
+                        <RadzenLegend Position="LegendPosition.Bottom" />
+                    </RadzenChart>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+
+        @* Profile Cards Grid *@
+        <RadzenCard>
+            <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem;">
+                👥 Profile Results
+            </RadzenText>
+
+            <RadzenDataGrid Data="@profileData"
+                            TItem="ProfileData"
+                            AllowPaging="true"
+                            PageSize="10"
+                            AllowSorting="true"
+                            AllowFiltering="true"
+                            FilterMode="FilterMode.Simple">
+                <Columns>
+                    <RadzenDataGridColumn TItem="ProfileData" Property="Name" Title="Name" Width="200px">
+                        <Template Context="profile">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                <RadzenGravatar Email="@profile.Email" Style="width: 32px; height: 32px; border-radius: 50%;" />
+                                <div>
+                                    <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: bold; margin: 0;">
+                                        @profile.Name
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #999; margin: 0;">
+                                        @profile.Title
+                                    </RadzenText>
+                                </div>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="ProfileData" Property="Category" Title="Category" Width="120px">
+                        <Template Context="profile">
+                            <RadzenBadge Text="@profile.Category" BadgeStyle="BadgeStyle.Info" />
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="ProfileData" Property="Experience" Title="Experience" Width="120px" />
+
+                    <RadzenDataGridColumn TItem="ProfileData" Property="Skills" Title="Skills" Width="300px">
+                        <Template Context="profile">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" Wrap="FlexWrap.Wrap">
+                                @foreach (var skill in profile.Skills.Take(5))
+                                {
+                                    <RadzenBadge Text="@skill" BadgeStyle="BadgeStyle.Light" Style="font-size: 0.75rem;" />
+                                }
+                                @if (profile.Skills.Count > 5)
+                                {
+                                    <RadzenBadge Text="@($"+{profile.Skills.Count - 5}")" BadgeStyle="BadgeStyle.Secondary" Style="font-size: 0.75rem;" />
+                                }
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="ProfileData" Property="MatchScore" Title="Match Score" Width="150px" Sortable="true">
+                        <Template Context="profile">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" AlignItems="AlignItems.Center">
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: bold; color: #667eea;">
+                                        @profile.MatchScore.ToString("F1")%
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption">
+                                        @GetStarRating(profile.MatchScore)
+                                    </RadzenText>
+                                </RadzenStack>
+                                <RadzenProgressBar Value="@profile.MatchScore" Max="100" ShowValue="false" Style="height: 6px;" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="ProfileData" Title="Actions" Width="120px" Sortable="false" Filterable="false">
+                        <Template Context="profile">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem">
+                                <RadzenButton Icon="visibility"
+                                              Size="ButtonSize.Small"
+                                              ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => ViewProfile(profile))" />
+                                <RadzenButton Icon="download"
+                                              Size="ButtonSize.Small"
+                                              ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => DownloadProfile(profile))" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenCard>
+    }
+    else if (!string.IsNullOrEmpty(searchQuery) && !isLoading)
+    {
+        <RadzenCard>
+            <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" Style="padding: 3rem;">
+                <RadzenIcon Icon="search_off" Style="font-size: 4rem; color: #ccc;" />
+                <RadzenText TextStyle="TextStyle.H6">No profiles found</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: #999;">
+                    Try adjusting your search criteria
+                </RadzenText>
+            </RadzenStack>
+        </RadzenCard>
+    }
+
+</RadzenStack>
 
 @code {
+    private string searchQuery = "";
+    private bool isLoading = false;
+    private List<ProfileData> profileData = new();
 
+    // Statistics
+    private int totalSkills => profileData.SelectMany(p => p.Skills).Distinct().Count();
+    private double averageScore => profileData.Any() ? profileData.Average(p => p.MatchScore) : 0;
+    private int experiencedProfiles => profileData.Count(p => p.ExperienceYears >= 5);
+
+    // Chart data
+    private List<SkillCount> skillsData = new();
+    private List<ScoreRange> scoreDistribution = new();
+    private List<ExperienceLevel> experienceData = new();
+    private List<CategoryCount> categoryData = new();
 
     protected override async Task OnInitializedAsync()
     {
-      
+        // Initialize with sample data or load from service
+        await SearchProfiles();
     }
 
-  
-  
+    private async Task SearchProfiles()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+            searchQuery = "software developer"; // Default search
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Call your Azure AI Search service
+            // var response = await SearchService.QueryWithGrounding(searchQuery);
+            // Parse response and populate profileData
+
+            // For demo purposes, generating sample data
+            await Task.Delay(1500);
+            GenerateSampleData();
+
+            // Generate chart data
+            GenerateChartData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GenerateSampleData()
+    {
+        var random = new Random();
+        var names = new[] { "John Smith", "Sarah Johnson", "Michael Chen", "Emily Davis", "David Wilson",
+                           "Lisa Anderson", "James Brown", "Maria Garcia", "Robert Taylor", "Jennifer Lee" };
+        var titles = new[] { "Senior Developer", "Software Engineer", "Full Stack Developer", "Backend Developer",
+                            "Frontend Developer", "DevOps Engineer", "Data Scientist", "ML Engineer" };
+        var categories = new[] { "Software Development", "Data Science", "DevOps", "UI/UX Design", "QA Engineering" };
+        var allSkills = new[] { "C#", "Python", "JavaScript", "React", "Angular", "Node.js", "Azure", "AWS",
+                               "Docker", "Kubernetes", "SQL", "MongoDB", "Machine Learning", "AI", "TypeScript" };
+
+        profileData.Clear();
+        for (int i = 0; i < 25; i++)
+        {
+            var skillCount = random.Next(3, 8);
+            var skills = allSkills.OrderBy(x => random.Next()).Take(skillCount).ToList();
+
+            profileData.Add(new ProfileData
+                {
+                    Id = i + 1,
+                    Name = names[random.Next(names.Length)],
+                    Title = titles[random.Next(titles.Length)],
+                    Category = categories[random.Next(categories.Length)],
+                    Email = $"user{i}@example.com",
+                    ExperienceYears = random.Next(1, 15),
+                    Experience = $"{random.Next(1, 15)} years",
+                    Skills = skills,
+                    MatchScore = random.Next(60, 100)
+                });
+        }
+    }
+
+    private void GenerateChartData()
+    {
+        // Skills distribution
+        skillsData = profileData
+            .SelectMany(p => p.Skills)
+            .GroupBy(s => s)
+            .Select(g => new SkillCount { Skill = g.Key, Count = g.Count() })
+            .OrderByDescending(s => s.Count)
+            .Take(10)
+            .ToList();
+
+        // Score distribution
+        scoreDistribution = new List<ScoreRange>
+        {
+            new ScoreRange { Range = "60-69", Count = profileData.Count(p => p.MatchScore >= 60 && p.MatchScore < 70) },
+            new ScoreRange { Range = "70-79", Count = profileData.Count(p => p.MatchScore >= 70 && p.MatchScore < 80) },
+            new ScoreRange { Range = "80-89", Count = profileData.Count(p => p.MatchScore >= 80 && p.MatchScore < 90) },
+            new ScoreRange { Range = "90-100", Count = profileData.Count(p => p.MatchScore >= 90) }
+        };
+
+        // Experience distribution
+        experienceData = new List<ExperienceLevel>
+        {
+            new ExperienceLevel { Level = "Junior (0-2 years)", Count = profileData.Count(p => p.ExperienceYears < 3) },
+            new ExperienceLevel { Level = "Mid-Level (3-5 years)", Count = profileData.Count(p => p.ExperienceYears >= 3 && p.ExperienceYears < 6) },
+            new ExperienceLevel { Level = "Senior (6-10 years)", Count = profileData.Count(p => p.ExperienceYears >= 6 && p.ExperienceYears < 11) },
+            new ExperienceLevel { Level = "Expert (10+ years)", Count = profileData.Count(p => p.ExperienceYears >= 11) }
+        };
+
+        // Category distribution
+        categoryData = profileData
+            .GroupBy(p => p.Category)
+            .Select(g => new CategoryCount { Category = g.Key, Count = g.Count() })
+            .ToList();
+    }
+
+    private string GetStarRating(double score)
+    {
+        int stars = score switch
+        {
+            >= 90 => 5,
+            >= 80 => 4,
+            >= 70 => 3,
+            >= 60 => 2,
+            _ => 1
+        };
+        return new string('⭐', stars);
+    }
+
+    private void ViewProfile(ProfileData profile)
+    {
+        // Implement view profile logic
+        Console.WriteLine($"Viewing profile: {profile.Name}");
+    }
+
+    private void DownloadProfile(ProfileData profile)
+    {
+        // Implement download logic
+        Console.WriteLine($"Downloading profile: {profile.Name}");
+    }
+
+    // Data models
+    public class ProfileData
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Title { get; set; }
+        public string Category { get; set; }
+        public string Email { get; set; }
+        public int ExperienceYears { get; set; }
+        public string Experience { get; set; }
+        public List<string> Skills { get; set; }
+        public double MatchScore { get; set; }
+    }
+
+    public class SkillCount
+    {
+        public string Skill { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class ScoreRange
+    {
+        public string Range { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class ExperienceLevel
+    {
+        public string Level { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class CategoryCount
+    {
+        public string Category { get; set; }
+        public int Count { get; set; }
+    }
 }
