@@ -32,8 +32,8 @@
                         }
                         else
                         {
-                             @((MarkupString)msg.Content.Replace("\n", "<br />")) 
-                         @*    @FormatMessage(msg.Content) *@
+                             @* @((MarkupString)msg.Content.Replace("\n", "<br />"))  *@
+                            @FormatMessage(msg.Content)
                         }
                     </div>
                     @* @if (!msg.IsUser && msg.Sources != null && msg.Sources.Any())
@@ -70,7 +70,7 @@
     <div class="popup-overlay" @onclick="ClosePopup">
         <div class="popup-content" @onclick:stopPropagation>
             <div class="popup-header">
-                <h4>Document Preview</h4>
+                <h4>Profile Preview</h4>
                 <button class="close-btn" @onclick="ClosePopup">✖</button>
             </div>
             <iframe src="@popupUrl" width="100%" height="600px" frameborder="0"></iframe>           
@@ -123,7 +123,9 @@
 
     private void OpenPopup(string url)
     {
-        if (url.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        popupUrl = $"https://docs.google.com/gview?embedded=true&url={Uri.EscapeDataString(url)}";
+
+        @* if (url.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
         {
             popupUrl = url; // show directly
         }
@@ -135,7 +137,7 @@
         else
         {            
             popupUrl = url;
-        }
+        } *@
 
         showPopup = true;
     }
@@ -149,15 +151,18 @@
     private MarkupString FormatMessage(string content)
     {
         string updated = content.Replace("\n", "<br />");
-        
+
+        // Replace only links ending with .pdf, .docx, or .doc
         updated = System.Text.RegularExpressions.Regex.Replace(
             updated,
-            "<a href=\"(.*?)\" target=\"_blank\">source</a>",
-            "<button class='popup-btn' onclick=\"dotnetHelper.invokeMethodAsync('OpenPopupFromJs', '$1')\">View Profile</button>"
+            "<a href=\"([^\"]*\\.(?:pdf|docx?|PDF|DOCX?))(\\?[^\" ]*)?\"[^>]*>.*?</a>",
+            "<a href=\"#\" class='popup-link' onclick=\"dotnetHelper.invokeMethodAsync('OpenPopupFromJs', '$1$2'); return false;\">View Profile</a>"
         );
 
         return new MarkupString(updated);
     }
+
+
 
     private async Task HandleSubmit()
     {        
@@ -449,8 +454,9 @@
 
     .popup-overlay {
         position: fixed;
-        top: 0;
+        top: 50px;
         left: 0;
+        bottom:50px;
         width: 100%;
         height: 100%;
         background: rgba(0,0,0,0.6);
@@ -498,6 +504,33 @@
     .popup-btn:hover {
         background-color: #0056b3;
     }
+
+.popup-link {
+    display: inline-block;
+    padding: 6px 14px;
+    color: #006bb7;
+    border: none;
+    border-radius: 6px;
+    text-decoration: none;          /* remove underline */
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.popup-link:hover {
+    color: #005a9e;
+    text-decoration: none;
+}
+
+.popup-link:focus {
+    outline: 2px solid #004578;
+    outline-offset: 2px;
+}
+
+.popup-link:active {
+    color: #004578;
+}
 
 </style>
 
