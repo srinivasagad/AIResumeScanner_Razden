@@ -23,7 +23,7 @@
 		<label for="fileInput" class="file-label">Choose Profiles:</label>
 
 		<InputFile id="fileInput" @key="fileInputKey" OnChange="OnFileSelected" multiple class="form-control"
-				   accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+			accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
 
 		@* @if (selectedFiles.Count > 0)
 		{
@@ -38,12 +38,12 @@
 			</div>
 		} *@
 
-		@if (!string.IsNullOrEmpty(uploadMessage))
+		@* @if (!string.IsNullOrEmpty(uploadMessage))
 		{
 			<div class="upload-status @(isUploadSuccess ? "success" : "error")">
 				@uploadMessage
 			</div>
-		}
+		} *@
 	</div>
 }
 
@@ -55,11 +55,45 @@
 		<button type="button" class="cancel-btn" @onclick="GoBack">
 			Cancel
 		</button>
-		<button type="button" class="submit-btn" @onclick="UploadFiles">
-			Submit
+		<button type="button" class="submit-btn" @onclick="UploadFiles" disabled="@isUploading">
+			@(isUploading ? "Uploading..." : "Submit")
 		</button>
 	</div>
 }
+
+@if (showPopup)
+{
+	<div class="popup-overlay-file-upload">
+		<div class="popup-content @(isUploadSuccess ? "popup-success" : "popup-error")">
+			<div class="popup-icon">
+				@if (isUploadSuccess)
+				{
+					<i class="bi bi-check-circle-fill"></i>
+				}
+				else
+				{
+					<i class="bi bi-exclamation-triangle-fill"></i>
+				}
+			</div>
+
+			<div class="popup-body">
+				<div class="popup-message">@popupMessage</div>
+
+				<div class="popup-actions">
+					<button class="popup-btn close-btn" @onclick="ClosePopup">Close</button>
+
+					@if (isUploadSuccess)
+					{
+						<button class="popup-btn navigate-btn" @onclick="NavigateToJDSearch">
+							Go to JD Search
+						</button>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
 
 <style>
 	.file-upload-container {
@@ -69,7 +103,7 @@
 		border: 1px solid #ddd;
 		border-radius: 8px;
 		padding: 20px;
-		box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 		font-family: 'Segoe UI', sans-serif;
 	}
 
@@ -121,7 +155,7 @@
 		border: 1px solid #e0e0e0;
 		padding: 8px 12px;
 		border-radius: 6px;
-		box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 		transition: background 0.2s ease;
 	}
 
@@ -192,13 +226,14 @@
 		font-weight: 500;
 		color: #333;
 	}
-
 </style>
 
 
 @code {
 	private bool showLoader = false;
 	private List<IBrowserFile> selectedFiles = new();
+	private List<JsonViewer.JsonFileModel> myJsonFiles = new List<JsonViewer.JsonFileModel>();
+	private List<(string FileName, byte[] Bytes)> uploadedFileBytes = new();
 	private Guid fileInputKey = Guid.NewGuid(); // unique key for InputFile
 	private string? previewUrl;
 	private string? errorMessage;
@@ -210,8 +245,11 @@
 	private bool isUploading = false;
 
 	private string? uploadMessage;
-	private bool isUploadSuccess;
+	private bool showPopup = false;
+	private bool isUploadSuccess = false;
+	private string popupMessage = string.Empty;
 
+	[Inject] private NavigationManager NavigationManager { get; set; }
 	protected override async Task OnInitializedAsync()
 	{
 		// Get the connection string from configuration
@@ -219,9 +257,26 @@
 		_blobServiceClient = new BlobServiceClient(azureConnectionString);
 	}
 
+	private void ShowPopup(string message, bool success)
+	{
+		popupMessage = message;
+		isUploadSuccess = success;
+		showPopup = true;
+	}
+
+	private void ClosePopup()
+	{
+		showPopup = false;
+	}
+
+	private void NavigateToJDSearch()
+	{
+		showPopup = false;
+		NavigationManager.NavigateTo("/");
+	}
+
 	private void ClearFile()
 	{
-
 		previewUrl = null;
 		errorMessage = null;
 		successMessage = null;
@@ -240,118 +295,45 @@
 		return $"{len:0.##} {sizes[order]}";
 	}
 
-	private List<JsonViewer.JsonFileModel> myJsonFiles = new List<JsonViewer.JsonFileModel>();
-	private List<(string FileName, byte[] Bytes)> uploadedFileBytes = new();
-
-	// private List<JsonViewer.JsonFileModel> myJsonFiles1 = new()
-	// {
-	// 	new JsonViewer.JsonFileModel
-	// 	{
-	// 		FileName = "mydata.json",
-	// 		Content = new { Name = "Test", Value = 123 }
-	// 	},
-	// 	new JsonViewer.JsonFileModel
-	// 		{
-	// 			FileName = "config.json",
-	// 			Content = new
-	// 			{
-	// 				AppName = "My Blazor Application",
-	// 				Version = "1.0.0",
-	// 				Settings = new
-	// 				{
-	// 					Theme = "dark",
-	// 					Language = "en",
-	// 					Notifications = true
-	// 				},
-	// 				Features = new[] { "authentication", "logging", "caching" }
-	// 			}
-	// 		},
-	// 		new JsonViewer.JsonFileModel
-	// 		{
-	// 			FileName = "users.json",
-	// 			Content = new
-	// 			{
-	// 				Users = new[]
-	// 				{
-	// 					new { Id = 1, Name = "John Doe", Email = "john@example.com", Role = "admin" },
-	// 					new { Id = 2, Name = "Jane Smith", Email = "jane@example.com", Role = "user" },
-	// 					new { Id = 3, Name = "Bob Johnson", Email = "bob@example.com", Role = "user" }
-	// 				},
-	// 				TotalCount = 3
-	// 			}
-	// 		},
-	// 		new JsonViewer.JsonFileModel
-	// 		{
-	// 			FileName = "metadata.json",
-	// 			Content = new
-	// 			{
-	// 				CreatedAt = DateTime.Now.AddDays(-10),
-	// 				UpdatedAt = DateTime.Now,
-	// 				Author = "System",
-	// 				Tags = new[] { "production", "active", "verified" },
-	// 				Statistics = new
-	// 				{
-	// 					TotalRequests = 15420,
-	// 					ActiveUsers = 245,
-	// 					AverageResponseTime = "120ms"
-	// 				}
-	// 			}
-	// 		},
-	// 		new JsonViewer.JsonFileModel
-	// 		{
-	// 			FileName = "database.json",
-	// 			Content = new
-	// 			{
-
-	// 				ConnectionString = "Server=localhost;Database=MyDb;",
-	// 				Provider = "SqlServer",
-	// 				MaxPoolSize = 100,
-	// 				CommandTimeout = 30,
-	// 				EnableRetry = true,
-	// 				RetryCount = 3
-	// 			}
-	// 		}
-	// };
-
 	private async Task OnFileSelected(InputFileChangeEventArgs e)
-{
-    selectedFiles.Clear();
-    uploadedFileBytes.Clear();
-    showLoader = true;
+	{
+		selectedFiles.Clear();
+		uploadedFileBytes.Clear();
+		showLoader = true;
 
-    foreach (var file in e.GetMultipleFiles())
-    {
-        // 🔹 Read and keep bytes in memory now
-        using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-        var fileBytes = ms.ToArray();
+		foreach (var file in e.GetMultipleFiles())
+		{
+			// 🔹 Read and keep bytes in memory now
+			using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+			using var ms = new MemoryStream();
+			await stream.CopyToAsync(ms);
+			var fileBytes = ms.ToArray();
 
-        uploadedFileBytes.Add((file.Name, fileBytes));
+			uploadedFileBytes.Add((file.Name, fileBytes));
 
-        // Existing metadata extraction logic
-        string base64 = Convert.ToBase64String(fileBytes);
-        ExtractMetaDataForResume extractMetaDataForResume = new();
-        var metaData = await extractMetaDataForResume.ExtractMetaData(
-            IsPdfMime(file) ? ExtractTextFromBase64Pdf(base64) : ReadWordText(new MemoryStream(fileBytes))
-        );
+			// Existing metadata extraction logic
+			string base64 = Convert.ToBase64String(fileBytes);
+			ExtractMetaDataForResume extractMetaDataForResume = new();
+			var metaData = await extractMetaDataForResume.ExtractMetaData(
+			IsPdfMime(file) ? ExtractTextFromBase64Pdf(base64) : ReadWordText(new MemoryStream(fileBytes))
+			);
 
-        myJsonFiles.Add(new JsonViewer.JsonFileModel
-        {
-            FileName = file.Name,
-            Content = System.Text.Json.JsonSerializer.Serialize(metaData)
-        });
-    }
+			myJsonFiles.Add(new JsonViewer.JsonFileModel
+			{
+				FileName = file.Name,
+				Content = System.Text.Json.JsonSerializer.Serialize(metaData)
+			});
+		}
 
-    showLoader = false;
-    StateHasChanged();
-}
+		showLoader = false;
+		StateHasChanged();
+	}
 
 	bool IsPdfMime(IBrowserFile file) =>
 	file.ContentType == "application/pdf";
 
 	bool IsDocxMime(IBrowserFile file) =>
-		file.ContentType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	file.ContentType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 	private void RemoveFile(IBrowserFile file)
 	{
@@ -368,7 +350,7 @@
 		using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
 		using var ms = new MemoryStream();
 		await stream.CopyToAsync(ms);
-		return ms.ToArray();  // raw file bytes
+		return ms.ToArray(); // raw file bytes
 	}
 
 	public string ExtractTextFromBase64Pdf(string base64Pdf)
@@ -408,40 +390,40 @@
 	}
 
 	private async Task UploadFiles()
-{
-    isUploading = true;
-    uploadMessage = null;
-    showLoader = true;
-    try
-    {
-        var containerClient = _blobServiceClient.GetBlobContainerClient("resumes");
-        await containerClient.CreateIfNotExistsAsync();
+	{
+		showLoader = true;
+		isUploading = true;
 
-        foreach (var file in uploadedFileBytes)
-        {
-            var blobClient = containerClient.GetBlobClient(file.FileName);
-            using var ms = new MemoryStream(file.Bytes);
-            await blobClient.UploadAsync(ms, overwrite: true);
-        }
+		try
+		{
+			var containerClient = _blobServiceClient.GetBlobContainerClient("resumes");
+			await containerClient.CreateIfNotExistsAsync();
 
-        isUploadSuccess = true;
-        uploadMessage = "Files uploaded successfully!";
-        myJsonFiles.Clear();
-        selectedFiles.Clear();
-        uploadedFileBytes.Clear();
-    }
-    catch (Exception ex)
-    {
-        isUploadSuccess = false;
-        uploadMessage = $"Upload failed: {ex.Message}";
-        Console.WriteLine($"Upload failed: {ex}");
-    }
-    finally
-    {
-        showLoader = false;
-        isUploading = false;
-    }
+			// Upload each file
+			foreach (var file in uploadedFileBytes)
+			{
+				var blobClient = containerClient.GetBlobClient(file.FileName);
+				using var ms = new MemoryStream(file.Bytes);
+				await blobClient.UploadAsync(ms, overwrite: true);
+			}
+
+			myJsonFiles.Clear();
+			selectedFiles.Clear();
+			uploadedFileBytes.Clear();
+
+			ShowPopup("Files uploaded successfully!", true);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Upload failed: {ex}");
+			// ⚠ Show error popup with exception message
+			ShowPopup($"Upload failed: {ex.Message}", false);
+		}
+		finally
+		{
+			showLoader = false;
+			isUploading = false;
+		}
+	}
+
 }
-
-}
-
