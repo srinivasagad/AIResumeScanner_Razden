@@ -241,6 +241,7 @@
 	}
 
 	private List<JsonViewer.JsonFileModel> myJsonFiles = new List<JsonViewer.JsonFileModel>();
+	private List<(string FileName, byte[] Bytes)> uploadedFileBytes = new();
 
 	// private List<JsonViewer.JsonFileModel> myJsonFiles1 = new()
 	// {
@@ -313,67 +314,38 @@
 	// };
 
 	private async Task OnFileSelected(InputFileChangeEventArgs e)
-	{
-		selectedFiles.Clear();
-		showLoader = true;
-		foreach (var file in e.GetMultipleFiles())
-		{
-			selectedFiles.Add(file);
-			if (IsPdfMime(file))
-			{
-				const long maxFileSize = 20 * 1024 * 1024; // 20 MB max size
+{
+    selectedFiles.Clear();
+    uploadedFileBytes.Clear();
+    showLoader = true;
 
-				using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
-				using var ms = new MemoryStream();
-				await stream.CopyToAsync(ms);
-				byte[] fileBytes = ms.ToArray();
+    foreach (var file in e.GetMultipleFiles())
+    {
+        // 🔹 Read and keep bytes in memory now
+        using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var fileBytes = ms.ToArray();
 
-				string base64 = Convert.ToBase64String(fileBytes);
+        uploadedFileBytes.Add((file.Name, fileBytes));
 
-				Console.WriteLine($"Read {file.Name} with size {fileBytes.Length} bytes");
+        // Existing metadata extraction logic
+        string base64 = Convert.ToBase64String(fileBytes);
+        ExtractMetaDataForResume extractMetaDataForResume = new();
+        var metaData = await extractMetaDataForResume.ExtractMetaData(
+            IsPdfMime(file) ? ExtractTextFromBase64Pdf(base64) : ReadWordText(new MemoryStream(fileBytes))
+        );
 
-				//Console.WriteLine(ExtractTextFromBase64Pdf(base64));
-				ExtractMetaDataForResume extractMetaDataForResume = new ExtractMetaDataForResume();
-				var metaData = await extractMetaDataForResume.ExtractMetaData(ExtractTextFromBase64Pdf(base64));
-				myJsonFiles.Add(new JsonViewer.JsonFileModel
-					{
-						FileName = file.Name,
-						Content = System.Text.Json.JsonSerializer.Serialize(metaData)
-					});
-			}
-			else if (IsDocxMime(file))
-			{
-				const long maxFileSize = 20 * 1024 * 1024; // 20 MB max size
+        myJsonFiles.Add(new JsonViewer.JsonFileModel
+        {
+            FileName = file.Name,
+            Content = System.Text.Json.JsonSerializer.Serialize(metaData)
+        });
+    }
 
-				using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
-				using var ms = new MemoryStream();
-				await stream.CopyToAsync(ms);
-				byte[] fileBytes = ms.ToArray();
-
-				string base64 = Convert.ToBase64String(fileBytes);
-
-				Console.WriteLine($"Read {file.Name} with size {fileBytes.Length} bytes");
-				Console.WriteLine($"DOCX file selected: {file.Name}");
-				//Console.WriteLine(ReadWordText(ms));
-				ExtractMetaDataForResume extractMetaDataForResume = new ExtractMetaDataForResume();
-				var metaData = await extractMetaDataForResume.ExtractMetaData(ReadWordText(ms));
-				//MetadataClass myDeserializedClass = JsonConvert.DeserializeObject<MetadataClass>(metaData);
-
-
-
-				myJsonFiles.Add(new JsonViewer.JsonFileModel
-					{
-						FileName = file.Name,
-						Content = System.Text.Json.JsonSerializer.Serialize(metaData)
-					});
-
-
-			}
-
-		}
-		showLoader = false;
-		StateHasChanged();
-	}
+    showLoader = false;
+    StateHasChanged();
+}
 
 	bool IsPdfMime(IBrowserFile file) =>
 	file.ContentType == "application/pdf";
@@ -431,56 +403,45 @@
 		showLoader = true;
 		myJsonFiles = new List<JsonViewer.JsonFileModel>();
 		selectedFiles.Clear();
+		uploadedFileBytes.Clear();
 		showLoader = false;
 	}
 
 	private async Task UploadFiles()
-	{
-		isUploading = true;
-		uploadMessage = null;
-		showLoader = true;
-		try
-		{
-			var containerClient = _blobServiceClient.GetBlobContainerClient("resumes");
-			await containerClient.CreateIfNotExistsAsync();
-			var uploadedFiles = new List<object>();
+{
+    isUploading = true;
+    uploadMessage = null;
+    showLoader = true;
+    try
+    {
+        var containerClient = _blobServiceClient.GetBlobContainerClient("resumes");
+        await containerClient.CreateIfNotExistsAsync();
 
-			foreach (var file in selectedFiles)
-			{
-				var blobClient = containerClient.GetBlobClient(file.Name);
-				using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-				var response = await blobClient.UploadAsync(stream, overwrite: true);
+        foreach (var file in uploadedFileBytes)
+        {
+            var blobClient = containerClient.GetBlobClient(file.FileName);
+            using var ms = new MemoryStream(file.Bytes);
+            await blobClient.UploadAsync(ms, overwrite: true);
+        }
 
-				if (response.GetRawResponse().Status == 201) // 201 = Created
-				{
-					Console.WriteLine($" File uploaded successfully: {file.Name}");
-					uploadedFiles.Add(new { FileName = file.Name, BlobUrl = blobClient.Uri });
+        isUploadSuccess = true;
+        uploadMessage = "Files uploaded successfully!";
+        myJsonFiles.Clear();
+        selectedFiles.Clear();
+        uploadedFileBytes.Clear();
+    }
+    catch (Exception ex)
+    {
+        isUploadSuccess = false;
+        uploadMessage = $"Upload failed: {ex.Message}";
+        Console.WriteLine($"Upload failed: {ex}");
+    }
+    finally
+    {
+        showLoader = false;
+        isUploading = false;
+    }
+}
 
-				}
-				else
-				{
-					Console.WriteLine($" Unexpected status: {response.GetRawResponse().Status}");
-
-				}
-			}
-			isUploadSuccess = true;
-			uploadMessage = " Files uploaded successfully!";
-			myJsonFiles.Clear();
-			selectedFiles.Clear();
-			showLoader = false;
-
-		}
-		catch (Exception ex)
-		{
-			isUploadSuccess = false;
-			uploadMessage = $" Upload failed: {ex.Message}";
-			showLoader = false;
-			Console.WriteLine($"Upload failed: {ex.Message}");
-		}
-		finally
-		{
-			isUploading = false;
-		}
-	}
 }
 
