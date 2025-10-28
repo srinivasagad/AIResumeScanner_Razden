@@ -41,11 +41,11 @@ public class ExtractAndUploadToAISearchFunc
         _embeddingService = embeddingService;
 
         // Get the connection string  and container name  from configuration
-        var blobConnectionString = _configuration.GetSection("AzureBlobStorage")["ConnectionString"];
+        var blobConnectionString = _configuration.GetSection("BlobStorage")["ConnectionString"];
         _blobServiceClient = new BlobServiceClient(blobConnectionString);
        
 
-        blobMetadataContainerString = _configuration.GetSection("AzureMetaDataBlobStorage")["ConnectionString"];
+        blobMetadataContainerString = _configuration.GetSection("MetaDataBlobStorage")["ConnectionString"];
         _blobServiceMetadataClient = new BlobServiceClient(blobMetadataContainerString);
        
     }
@@ -53,7 +53,7 @@ public class ExtractAndUploadToAISearchFunc
     [Function(nameof(ExtractAndUploadToAISearchFunc))]
     public async Task Run([BlobTrigger("resumes/{name}", Connection = "AzureWebJobsStorage")] Stream stream, string name)
     {
-        blobMetadataContainerName = _configuration.GetSection("AzureMetaDataBlobStorage")["ContainerName"];
+        blobMetadataContainerName = _configuration.GetSection("MetaDataBlobStorage")["ContainerName"];
 
         var extension = Path.GetExtension(name);
         string content = String.Empty;
