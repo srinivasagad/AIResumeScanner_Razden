@@ -35,6 +35,7 @@ public class ExtractAndUploadToAISearchFunc
     private readonly EmbeddingService _embeddingService;
     public ExtractAndUploadToAISearchFunc(ILogger<ExtractAndUploadToAISearchFunc> logger, IConfiguration configuration, ChunkingService chunkingService, EmbeddingService embeddingService)
     {
+       
         _logger = logger;
         _configuration = configuration;
         _chunkingService = chunkingService;
@@ -47,7 +48,9 @@ public class ExtractAndUploadToAISearchFunc
 
         blobMetadataContainerString = _configuration.GetSection("MetaDataBlobStorage")["ConnectionString"];
         _blobServiceMetadataClient = new BlobServiceClient(blobMetadataContainerString);
-       
+
+        _logger.LogInformation("Constructor Calling.....");
+
     }
 
     [Function(nameof(ExtractAndUploadToAISearchFunc))]
@@ -172,11 +175,12 @@ public class ExtractAndUploadToAISearchFunc
 
                 // Step 1: Chunk the content
                 var chunks = _chunkingService.ChunkBySentences(content);
-                Console.WriteLine($"Created {chunks.Count} chunks");
+                _logger.LogInformation($"Created {chunks.Count} chunks");
+
 
                 // Step 2: Generate embeddings for each chunk
                 var chunkVectors = await _embeddingService.GenerateEmbeddingsForChunksAsync(chunks);
-                Console.WriteLine($"Generated {chunkVectors.Count} embeddings");
+                _logger.LogInformation($"Generated {chunkVectors.Count} embeddings");
 
                 var averagedVector = await _embeddingService.AverageVectors(chunkVectors);
 
@@ -198,17 +202,14 @@ public class ExtractAndUploadToAISearchFunc
 
                 var batch = IndexDocumentsBatch.Upload(new[] { document });
                 var uploadResult = await searchClient.IndexDocumentsAsync(batch);
-                Console.WriteLine("Updated document to AI Search Index");
-
+                _logger.LogInformation("Updated document to AI Search Index");
                 if (uploadResult.Value.Results[0].Succeeded)
-                {
-                    Console.WriteLine($"Successfully uploaded document {guid} with {chunks.Count} chunks");
-
+                {                  
+                    _logger.LogInformation($"Successfully uploaded document {guid} with {chunks.Count} chunks");
                 }
                 else
                 {
-                    //Console.WriteLine($"Failed to upload: {uploadResult?.ErrorMessage}");
-                    //return false;
+                    _logger.LogInformation($"Failed to upload :{guid}");
                 }
 
 
