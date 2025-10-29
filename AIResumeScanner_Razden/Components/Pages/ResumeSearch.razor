@@ -156,13 +156,11 @@
         updated = System.Text.RegularExpressions.Regex.Replace(
             updated,
             "<a href=\"([^\"]*\\.(?:pdf|docx?|PDF|DOCX?))(\\?[^\" ]*)?\"[^>]*>.*?</a>",
-            "<a href=\"#\" class='popup-link' onclick=\"dotnetHelper.invokeMethodAsync('OpenPopupFromJs', '$1$2'); return false;\">View Profile</a>"
+            "<a href=\"#\" class='popup-link' onclick=\"dotnetHelper.invokeMethodAsync('OpenPopupFromJs', encodeURIComponent('$1$2')); return false;\">View Profile</a>"
         );
 
         return new MarkupString(updated);
     }
-
-
 
     private async Task HandleSubmit()
     {        
