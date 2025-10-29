@@ -123,22 +123,8 @@
 
     private void OpenPopup(string url)
     {
+        url = Uri.UnescapeDataString(url);
         popupUrl = $"https://docs.google.com/gview?embedded=true&url={Uri.EscapeDataString(url)}";
-
-        @* if (url.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-        {
-            popupUrl = url; // show directly
-        }
-        else if (url.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) ||
-                 url.EndsWith(".doc", StringComparison.OrdinalIgnoreCase))
-        {            
-            popupUrl = $"https://view.officeapps.live.com/op/embed.aspx?src={Uri.EscapeDataString(url)}";
-        }
-        else
-        {            
-            popupUrl = url;
-        } *@
-
         showPopup = true;
     }
 
@@ -156,7 +142,7 @@
         updated = System.Text.RegularExpressions.Regex.Replace(
             updated,
             "<a href=\"([^\"]*\\.(?:pdf|docx?|PDF|DOCX?))(\\?[^\" ]*)?\"[^>]*>.*?</a>",
-            "<a href=\"#\" class='popup-link' onclick=\"dotnetHelper.invokeMethodAsync('OpenPopupFromJs', encodeURIComponent('$1$2')); return false;\">View Profile</a>"
+            "<a href=\"#\" class='popup-link' onclick=\"dotnetHelper.invokeMethodAsync('OpenPopupFromJs', '$1$2'); return false;\">View Profile</a>"
         );
 
         return new MarkupString(updated);
