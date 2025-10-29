@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "AIResumeScanner_Razden\\AIResumeScanner_Razden.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "ExtractAndUploadToAISearchFunc\\ExtractAndUploadToAISearchFunc.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

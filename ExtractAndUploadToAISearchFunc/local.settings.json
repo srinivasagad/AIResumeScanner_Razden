@@ -1,0 +1,33 @@
+{
+    "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=resumestore12345;AccountKey=cRRESA9dZasmAutH0rq8IyrCJSpidjn1L8AJ3OVuujupZALEaU2v8yDSZA925tkDaL+ETu4YO7cw+AStY5yX4g==;EndpointSuffix=core.windows.net",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+
+    "AzureOpenAI__OpenAIEndPoint": "https://resumeembeddingendpoint.openai.azure.com/",
+    "AzureOpenAI__OpenAIKey": "BxUQYM8ND9UR2q3WqFrk2YlyHR4NHCG2ORy6xpublVSY4WIl3TwYJQQJ99BJACYeBjFXJ3w3AAABACOGeGiz",
+    "AzureOpenAI__DeploymentName": "gpt-4.1",
+    "AzureOpenAI__TokenCount": "16000",
+
+    "ResumePrompt": "You are an AI that extracts structured information from resumes. Parse the following resume and return only the required fields in structured JSON format: Required fields:\n• full_name\n• email\n• phone\n• location\n• professional_summary\n• skills (list)\n• total_experience_years\n• work_experience (list of objects with: job_title, company_name, start_date, end_date, location, description)\n• education (list of objects with: degree, field_of_study, institution_name, start_date, end_date)\n• certifications (list of objects with: name, issuer, date)\n• projects (list of objects with: title, description, technologies)\n• languages (list)\n\nImportant:\n- All fields above must be present in the output JSON, even if their value is null or an empty list.\n- Return JSON only. Do not include explanations or additional text.",
+
+    "DownloadBlobStorage__ContainerName": "resumes",
+    "DownloadBlobStorage__AccountName": "resumestore12345",
+
+    "UploadBlobStorage__ContainerName": "resumemetadatajson",
+    "UploadBlobStorage__AccountName": "resumemetadatajson",
+    "UploadBlobStorage__ConnectionString": "DefaultEndpointsProtocol=https;AccountName=resumestore12345;AccountKey=cRRESA9dZasmAutH0rq8IyrCJSpidjn1L8AJ3OVuujupZALEaU2v8yDSZA925tkDaL+ETu4YO7cw+AStY5yX4g==;EndpointSuffix=core.windows.net",
+
+    "AISearch__SearchIndexName": "resumefieldssearchindex",
+    "AISearch__ServiceEndpoint": "https://resumeaisearchstore.search.windows.net",
+    "AISearch__SearchApiKey": "4psgmJYJRx5OdFgCXrkcPJRhYsbH1t3hQIVhcML2MHAzSeCSOFvJ",
+    "AISearch__SearchAPIVersion": "2025-08-01-preview",
+
+    "BlobStorage__ConnectionString": "DefaultEndpointsProtocol=https;AccountName=resumestore12345;AccountKey=cRRESA9dZasmAutH0rq8IyrCJSpidjn1L8AJ3OVuujupZALEaU2v8yDSZA925tkDaL+ETu4YO7cw+AStY5yX4g==;EndpointSuffix=core.windows.net",
+    "BlobStorage__ContainerName": "resumes",
+
+    "MetaDataBlobStorage__ConnectionString": "DefaultEndpointsProtocol=https;AccountName=resumesmetadatajson;AccountKey=W7tt7RCq9bhOyF5fhEzmF5oV9gT44qf/fS1iTMavX0/OuiA/Yhndk12XoBDzAHqQIfv+PwJ3FKkw+AStqb3aIA==;EndpointSuffix=core.windows.net",
+    "MetaDataBlobStorage__ContainerName": "resumemetadatajson"
+
+  }
+}
