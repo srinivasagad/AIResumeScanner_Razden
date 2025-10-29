@@ -2,8 +2,8 @@
     "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=resumestore12345;AccountKey=cRRESA9dZasmAutH0rq8IyrCJSpidjn1L8AJ3OVuujupZALEaU2v8yDSZA925tkDaL+ETu4YO7cw+AStY5yX4g==;EndpointSuffix=core.windows.net",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING":"InstrumentationKey=8af61d68-1b31-410c-8ef3-cfe9358f4bbe;IngestionEndpoint=https://centralindia-0.in.applicationinsights.azure.com/;LiveEndpoint=https://centralindia.livediagnostics.monitor.azure.com/;ApplicationId=4c66009f-ce20-4e87-bf57-1118f4e22c3f",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-
     "AzureOpenAI__OpenAIEndPoint": "https://resumeembeddingendpoint.openai.azure.com/",
     "AzureOpenAI__OpenAIKey": "BxUQYM8ND9UR2q3WqFrk2YlyHR4NHCG2ORy6xpublVSY4WIl3TwYJQQJ99BJACYeBjFXJ3w3AAABACOGeGiz",
     "AzureOpenAI__DeploymentName": "gpt-4.1",
@@ -29,5 +29,12 @@
     "MetaDataBlobStorage__ConnectionString": "DefaultEndpointsProtocol=https;AccountName=resumesmetadatajson;AccountKey=W7tt7RCq9bhOyF5fhEzmF5oV9gT44qf/fS1iTMavX0/OuiA/Yhndk12XoBDzAHqQIfv+PwJ3FKkw+AStqb3aIA==;EndpointSuffix=core.windows.net",
     "MetaDataBlobStorage__ContainerName": "resumemetadatajson"
 
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Function": "Information",
+      "Microsoft": "Warning"
+    }
   }
 }
