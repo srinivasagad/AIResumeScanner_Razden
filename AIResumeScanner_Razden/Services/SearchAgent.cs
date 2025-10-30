@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AIResumeScanner_Razden.Models;
 
 namespace AIResumeScanner_Razden.Services
 {
@@ -17,6 +18,7 @@ namespace AIResumeScanner_Razden.Services
         private readonly ConversationStore _store;
         private readonly ChatCompletionAgent _agent;
         private readonly string _sessionId;
+       
 
         public SearchAgent(
             string azureOpenAiEndpoint,
@@ -144,16 +146,35 @@ Remember: Your goal is to provide accurate, well-formatted, visually engaging re
                     FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
                 })
             };
+
+          
         }
 
         public async Task<string> ChatAsync(string userMessage)
         {
+            var chatHistory = new ChatHistory();
+            // ✅ Check if same user message already exists in history
+            if (UserPromptExists(_sessionId, userMessage))
+            {
+                
+                _store.SaveMessage(_sessionId, "user", userMessage);
+                // Optionally, return last assistant response for that same prompt
+                var previousResponse = GetLastAssistantResponse(_sessionId, userMessage);
+                if (previousResponse != null)
+                {
+                    _store.SaveMessage(_sessionId, "assistant", previousResponse);
+                    return previousResponse;
+                }
+            }
+
+
+
             // Save user message to persistent store
             _store.SaveMessage(_sessionId, "user", userMessage);
 
             // Get conversation history
             var history = _store.GetHistory(_sessionId);
-            var chatHistory = new ChatHistory();
+           
 
             // Load previous messages
             foreach (var msg in history.TakeLast(10)) // Keep last 10 messages for context
@@ -175,6 +196,7 @@ Remember: Your goal is to provide accurate, well-formatted, visually engaging re
 
             // Save assistant response
             _store.SaveMessage(_sessionId, "assistant", response);
+          
 
             return response;
         }
@@ -226,6 +248,38 @@ Remember: Your goal is to provide accurate, well-formatted, visually engaging re
 
             return response;
         }
+
+
+        public bool UserPromptExists(string sessionId, string prompt)
+        {
+            var state = _store.GetOrCreate(sessionId);
+
+            // Case-insensitive, trimmed comparison
+            return state.Messages.Any(m =>
+                m.Role.Equals("user", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(m.Content.Trim(), prompt.Trim(), StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        public string? GetLastAssistantResponse(string sessionId, string prompt)
+        {
+            var state = _store.GetOrCreate(sessionId);
+            var messages = state.Messages;
+
+            for (int i = 0; i < messages.Count - 1; i++)
+            {
+                if (messages[i].Role.Equals("user", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(messages[i].Content.Trim(), prompt.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    // Return next message if it’s from assistant
+                    if (messages[i + 1].Role.Equals("assistant", StringComparison.OrdinalIgnoreCase))
+                        return messages[i + 1].Content;
+                }
+            }
+
+            return null;
+        }
+
     }
 
 }
