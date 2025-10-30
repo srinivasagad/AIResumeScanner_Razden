@@ -98,5 +98,7 @@ namespace AIResumeScanner_Razden.Services
             _store.Clear();
             SaveToFile();
         }
+
+
     }
 }
