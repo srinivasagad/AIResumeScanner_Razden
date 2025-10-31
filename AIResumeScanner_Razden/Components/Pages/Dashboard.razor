@@ -1,6 +1,8 @@
-﻿@page "/cloudstatus"
+﻿@page "/dashboard"
 
-@page "/profile-graph"
+@using Azure;
+@using Azure.Search.Documents;
+@using Azure.Search.Documents.Indexes;
 @using Radzen
 @using Radzen.Blazor
 @* @inject AzureAISearchGrounding SearchService *@
@@ -287,7 +289,7 @@
     private List<ScoreRange> scoreDistribution = new();
     private List<ExperienceLevel> experienceData = new();
     private List<CategoryCount> categoryData = new();
-
+    long documentCount = 0;
     protected override async Task OnInitializedAsync()
     {
         // Initialize with sample data or load from service
@@ -304,6 +306,21 @@
 
         try
         {
+            string endpoint = "https://resumeaisearchstore.search.windows.net";
+            string apiKey = "4psgmJYJRx5OdFgCXrkcPJRhYsbH1t3hQIVhcML2MHAzSeCSOFvJ";
+            Uri serviceEndpoint = new Uri(endpoint);
+            AzureKeyCredential credential = new AzureKeyCredential(apiKey);
+
+            SearchIndexClient indexClient = new SearchIndexClient(serviceEndpoint, credential);
+
+            // Get the index
+            SearchClient searchClient = new SearchClient(serviceEndpoint, "resumefieldssearchindex", credential);
+
+            // Get statistics - includes document count
+            var stats = await searchClient.GetDocumentCountAsync();
+            documentCount = stats.Value;
+
+
             // Call your Azure AI Search service
             // var response = await SearchService.QueryWithGrounding(searchQuery);
             // Parse response and populate profileData
@@ -314,6 +331,8 @@
 
             // Generate chart data
             GenerateChartData();
+
+           
         }
         catch (Exception ex)
         {
@@ -338,7 +357,7 @@
                                "Docker", "Kubernetes", "SQL", "MongoDB", "Machine Learning", "AI", "TypeScript" };
 
         profileData.Clear();
-        for (int i = 0; i < 25; i++)
+        for (int i = 0; i < documentCount; i++)
         {
             var skillCount = random.Next(3, 8);
             var skills = allSkills.OrderBy(x => random.Next()).Take(skillCount).ToList();
