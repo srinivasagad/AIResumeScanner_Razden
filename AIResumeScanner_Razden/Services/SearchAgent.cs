@@ -153,6 +153,7 @@ Remember: Your goal is to provide accurate, well-formatted, visually engaging re
         public async Task<string> ChatAsync(string userMessage)
         {
             var chatHistory = new ChatHistory();
+            /*
             // ✅ Check if same user message already exists in history
             if (UserPromptExists(_sessionId, userMessage))
             {
@@ -166,7 +167,7 @@ Remember: Your goal is to provide accurate, well-formatted, visually engaging re
                     return previousResponse;
                 }
             }
-
+            */
 
 
             // Save user message to persistent store
