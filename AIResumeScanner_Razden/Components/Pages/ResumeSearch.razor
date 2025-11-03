@@ -57,7 +57,8 @@
         <input type="text"
                class="chat-input"
                placeholder="Type your message..."
-               @bind="currentMessage"
+               @bind="currentMessage" 
+               @onkeydown="HandleKeyPress"
                @bind:event="oninput" />
         <button class="send-btn" @onclick="HandleSubmit" disabled="@string.IsNullOrWhiteSpace(currentMessage)">
             Send
