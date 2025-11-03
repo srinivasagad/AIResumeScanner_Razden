@@ -7,7 +7,7 @@
         <h3>Profile Search</h3>
         <button class="clear-btn" @onclick="ClearHistory">Clear All</button>
     </div>
-<OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
+    <OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
 
     <div class="chat-messages">
         @if (chatHistory.Count == 0)
@@ -32,7 +32,7 @@
                         }
                         else
                         {
-                             @* @((MarkupString)msg.Content.Replace("\n", "<br />"))  *@
+                            @* @((MarkupString)msg.Content.Replace("\n", "<br />"))  *@
                             @FormatMessage(msg.Content)
                         }
                     </div>
@@ -54,12 +54,13 @@
     </div>
 
     <div class="chat-input-section">
+
         <input type="text"
-               class="chat-input"
-               placeholder="Type your message..."
-               @bind="currentMessage" 
-               @onkeydown="HandleKeyPress"
-               @bind:event="oninput" />
+        class="chat-input"
+        placeholder="Type your message..." 
+        @bind="currentMessage" 
+        @bind:event="oninput"
+               @onkeydown="HandleKeyPress" />
         <button class="send-btn" @onclick="HandleSubmit" disabled="@string.IsNullOrWhiteSpace(currentMessage)">
             Send
         </button>
@@ -223,17 +224,22 @@
         }
         catch (Exception ex)
         {
+            showLoader = false;
+            chatResponse = HttpUtility.HtmlEncode(ex.Message);
+
             Console.WriteLine($"\nError: {ex.Message}");
             Console.WriteLine($"Stack: {ex.StackTrace}\n");
+           
         }
         showLoader = false;
 
     }
 
-    private async void HandleKeyPress(KeyboardEventArgs e)
+    private async Task HandleKeyPress(KeyboardEventArgs e)
     {
         if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(currentMessage))
         {
+           
             await HandleSubmit();
         }
     }
