@@ -51,7 +51,8 @@
                 <RadzenCard Style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
                     <RadzenStack AlignItems="AlignItems.Center">
                         <RadzenIcon Icon="code" Style="font-size: 3rem;" />
-                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@totalSkills</RadzenText>
+                        @* <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@totalSkills</RadzenText> *@
+                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">TBD</RadzenText>
                         <RadzenText TextStyle="TextStyle.Body2">Unique Skills</RadzenText>
                     </RadzenStack>
                 </RadzenCard>
@@ -61,7 +62,8 @@
                 <RadzenCard Style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
                     <RadzenStack AlignItems="AlignItems.Center">
                         <RadzenIcon Icon="star" Style="font-size: 3rem;" />
-                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@averageScore.ToString("F1")</RadzenText>
+                       @*  <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@averageScore.ToString("F1")</RadzenText> *@
+                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">TBD</RadzenText>
                         <RadzenText TextStyle="TextStyle.Body2">Avg Match Score</RadzenText>
                     </RadzenStack>
                 </RadzenCard>
@@ -71,7 +73,8 @@
                 <RadzenCard Style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
                     <RadzenStack AlignItems="AlignItems.Center">
                         <RadzenIcon Icon="workspace_premium" Style="font-size: 3rem;" />
-                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@experiencedProfiles</RadzenText>
+                      @*   <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">@experiencedProfiles</RadzenText> *@
+                        <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">TBD</RadzenText>
                         <RadzenText TextStyle="TextStyle.Body2">5+ Years Exp</RadzenText>
                     </RadzenStack>
                 </RadzenCard>
@@ -299,7 +302,7 @@
     private async Task SearchProfiles()
     {
         if (string.IsNullOrWhiteSpace(searchQuery))
-            searchQuery = "software developer"; // Default search
+            searchQuery = ""; // Default search
 
         isLoading = true;
         StateHasChanged();
