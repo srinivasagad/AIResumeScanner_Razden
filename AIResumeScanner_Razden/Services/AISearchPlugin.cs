@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using Azure.AI.TextAnalytics;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Models;
 using Microsoft.SemanticKernel;
@@ -19,8 +20,10 @@ namespace AIResumeScanner_Razden.Services
 
         private readonly SearchClient _searchClient;
         private readonly string _embeddingModel;
+        private readonly TextAnalyticsClient _textAnalyticsClient;
 
-        public AISearchPlugin(string endpoint, string indexName, string apiKey, string embeddingModel = "text-embedding-ada-002")
+        public AISearchPlugin(string endpoint, string indexName, string apiKey, string embeddingModel = "text-embedding-ada-002"
+        ,string textAnalyticsEndpoint = null, string textAnalyticsKey = null)
         {
             _searchClient = new SearchClient(
                 new Uri(endpoint),
@@ -28,6 +31,16 @@ namespace AIResumeScanner_Razden.Services
                 new AzureKeyCredential(apiKey)
             );
             _embeddingModel = embeddingModel;
+
+            // Initialize Text Analytics client if credentials provided
+
+            if (!string.IsNullOrEmpty(textAnalyticsEndpoint) && !string.IsNullOrEmpty(textAnalyticsKey))
+            {
+                _textAnalyticsClient = new TextAnalyticsClient(
+                    new Uri(textAnalyticsEndpoint),
+                    new AzureKeyCredential(textAnalyticsKey)
+                );
+            }
         }
 
         [KernelFunction, Description("Perform semantic search using vector embeddings")]
@@ -68,13 +81,78 @@ namespace AIResumeScanner_Razden.Services
 
                 var response = await _searchClient.SearchAsync<Azure.Search.Documents.Models.SearchDocument>(query, searchOptions);
 
-                return FormatSearchResults(response);
+                // Add sentiment analysis to results
+
+                var resultsWithSentiment = await AddSentimentAnalysis(response);
+                return FormatSearchResults(resultsWithSentiment, response.Value.TotalCount ?? 0);
 
 
             }
             catch (Exception ex)
             {
                 return $"Search error: {ex.Message}";
+            }
+        }
+
+        private async Task<List<SearchResultModel>> AddSentimentAnalysis(SearchResults<Azure.Search.Documents.Models.SearchDocument> results)
+        {
+            var parsedResults = ParseSearchResults(results);
+
+            // If Text Analytics client is not initialized, return without sentiment
+            if (_textAnalyticsClient == null)
+                return parsedResults;
+
+            try
+            {
+                // Prepare documents for batch sentiment analysis
+                var documentsToAnalyze = new List<string>();
+                var validResults = new List<SearchResultModel>();
+
+                foreach (var result in parsedResults)
+                {
+                    // Get content for analysis (prioritize Content, fallback to chunks)
+                    var contentForAnalysis = !string.IsNullOrEmpty(result.Content)
+                        ? result.Content
+                        : result.Chunks.Any()
+                            ? string.Join(" ", result.Chunks.Take(3))
+                            : "";
+
+                    // Truncate to 5120 characters (Text Analytics limit)
+                    if (!string.IsNullOrEmpty(contentForAnalysis))
+                    {
+                        if (contentForAnalysis.Length > 5120)
+                            contentForAnalysis = contentForAnalysis.Substring(0, 5120);
+
+                        documentsToAnalyze.Add(contentForAnalysis);
+                        validResults.Add(result);
+                    }
+                }
+
+                // Perform batch sentiment analysis
+                if (documentsToAnalyze.Any())
+                {
+                    var sentimentResults = await _textAnalyticsClient.AnalyzeSentimentBatchAsync(documentsToAnalyze);
+
+                    for (int i = 0; i < validResults.Count; i++)
+                    {
+                        if (!sentimentResults.Value[i].HasError)
+                        {
+                            var sentiment = sentimentResults.Value[i].DocumentSentiment;
+                            validResults[i].Sentiment = sentiment.Sentiment.ToString();
+                            validResults[i].PositiveScore = sentiment.ConfidenceScores.Positive;
+                            validResults[i].NeutralScore = sentiment.ConfidenceScores.Neutral;
+                            validResults[i].NegativeScore = sentiment.ConfidenceScores.Negative;
+                        }
+                    }
+                }
+
+                return parsedResults;
+            }
+            catch (Exception ex)
+            {
+                // Log error but return results without sentiment
+                Console.WriteLine($"Sentiment analysis error: {ex.Message}");
+                return parsedResults;
             }
         }
 
@@ -300,11 +378,21 @@ namespace AIResumeScanner_Razden.Services
                 if (result.Skills.Any())
                     formatted.AppendLine($"💼 Skills: {string.Join(", ", result.Skills)}");
 
+                // Display sentiment analysis results
+                if (!string.IsNullOrEmpty(result.Sentiment))
+                {
+                    formatted.AppendLine($"\n💭 {result.SentimentLevel}");
+                    formatted.AppendLine($"   • Positive: {GetSentimentBar(result.PositiveScore)} {result.PositiveScore:P1}");
+                    formatted.AppendLine($"   • Neutral:  {GetSentimentBar(result.NeutralScore)} {result.NeutralScore:P1}");
+                    formatted.AppendLine($"   • Negative: {GetSentimentBar(result.NegativeScore)} {result.NegativeScore:P1}");
+                }
+
+
                 // Display scores with visual indicators
                 if (result.RerankerScore.HasValue)
                 {
                     string scoreBar = GetScoreBar(result.RerankerScore.Value);
-                    formatted.AppendLine($"🎯 Relevance: {scoreBar} ({result.RerankerScore.Value:F2})");
+                    formatted.AppendLine($"\n🎯 Relevance: {scoreBar} ({result.RerankerScore.Value:F2})");
                 }
                 else if (result.SearchScore.HasValue)
                 {
@@ -364,6 +452,24 @@ namespace AIResumeScanner_Razden.Services
             }
 
             return formatted.ToString();
+        }
+
+        private string GetSentimentEmoji(string sentiment)
+        {
+            return sentiment?.ToLower() switch
+            {
+                "positive" => "😊",
+                "negative" => "😟",
+                "neutral" => "😐",
+                _ => "❓"
+            };
+        }
+
+        private string GetSentimentBar(double score)
+        {
+            int filled = (int)(score * 10);
+            int empty = 10 - filled;
+            return $"{RepeatString("█", filled)}{RepeatString("░", empty)}";
         }
 
         // Helper method to generate star rating based on score

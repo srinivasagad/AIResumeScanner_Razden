@@ -28,7 +28,9 @@ namespace AIResumeScanner_Razden.Services
             string searchEndpoint,
             string searchIndexName,
             string searchApiKey,
-            string sessionId)
+            string sessionId,
+            string textAnalyticsEndpoint,
+            string textAnalyticsApiKey)
         {
             _sessionId = sessionId;
             _store = new ConversationStore();
@@ -41,9 +43,8 @@ namespace AIResumeScanner_Razden.Services
                 apiKey: azureOpenAiApiKey
             );
 
-
             // Add AI Search plugin
-            var searchPlugin = new AISearchPlugin(searchEndpoint, searchIndexName, searchApiKey);
+            var searchPlugin = new AISearchPlugin(searchEndpoint, searchIndexName, searchApiKey, embeddingDeploymentName, textAnalyticsEndpoint, textAnalyticsApiKey);
             builder.Plugins.AddFromObject(searchPlugin, "AISearch");
 
             _kernel = builder.Build();

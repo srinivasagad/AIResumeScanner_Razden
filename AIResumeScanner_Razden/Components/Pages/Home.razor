@@ -57,6 +57,8 @@
     private string searchEndpoint { get; set; } = string.Empty;
     private string searchIndexName { get; set; } = string.Empty;
     private string searchApiKey { get; set; } = string.Empty;
+    private string textAnalyticsEndpoint { get; set; } = string.Empty;
+    private string textAnalyticsApiKey { get; set; } = string.Empty;
 
     private string sessionId = Guid.NewGuid().ToString();
 
@@ -71,6 +73,8 @@
         searchEndpoint = _configuration.GetSection("OpenAISettings")["SearchEndpoint"];
         searchIndexName = _configuration.GetSection("OpenAISettings")["SearchIndexName"];
         searchApiKey = _configuration.GetSection("OpenAISettings")["SearchApiKey"];
+        textAnalyticsEndpoint = _configuration.GetSection("AzureTextAnalytics")["Endpoint"];
+        textAnalyticsApiKey = _configuration.GetSection("AzureTextAnalytics")["ApiKey"];
     }
 
     private async Task HandleSubmit()
@@ -85,7 +89,9 @@
                 searchEndpoint,
                 searchIndexName,
                 searchApiKey,
-                sessionId
+                sessionId,
+                textAnalyticsEndpoint,
+                textAnalyticsApiKey
             );
 
             Console.WriteLine("Search Agent initialized with Azure OpenAI. Type 'exit' to quit.");
@@ -173,7 +179,9 @@
                 searchEndpoint,
                 searchIndexName,
                 searchApiKey,
-                sessionId
+                sessionId,
+                textAnalyticsEndpoint,
+                textAnalyticsApiKey
             );
         var history = agent.GetConversationHistory();
         string pdfPath = $"conversation_history.csv"; 
@@ -200,7 +208,9 @@
                 searchEndpoint,
                 searchIndexName,
                 searchApiKey,
-                sessionId
+                sessionId,
+                textAnalyticsEndpoint,
+                textAnalyticsApiKey
             );
         var history = agent.GetConversationHistory();        
         string pdfPath = $"conversation_history_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";

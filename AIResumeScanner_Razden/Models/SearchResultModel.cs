@@ -29,6 +29,14 @@ namespace AIResumeScanner_Razden.Models
         public double FinalScore => RerankerScore ?? SearchScore ?? 0;
         public string ScoreLevel => GetScoreLevel(FinalScore);
 
+        // Sentiment Analysis Properties
+        public string Sentiment { get; set; }
+        public double PositiveScore { get; set; }
+        public double NeutralScore { get; set; }
+        public double NegativeScore { get; set; }
+        public string SentimentLevel => GetSentimentLevel();
+
+
         // Semantic Search Results
         public List<SemanticCaption> SemanticCaptions { get; set; } = new List<SemanticCaption>();
 
@@ -64,6 +72,21 @@ namespace AIResumeScanner_Razden.Models
                 _ => "🔴 Weak Match"
             };
         }
+
+         private string GetSentimentLevel()
+        {
+            if (string.IsNullOrEmpty(Sentiment))
+                return string.Empty;
+            
+            return Sentiment.ToLower() switch
+            {
+                "positive" => PositiveScore >= 0.8 ? "😊 Very Positive" : "🙂 Positive",
+                "negative" => NegativeScore >= 0.8 ? "😢 Very Negative" : "😟 Negative",
+                "neutral" => "😐 Neutral",
+                _ => "❓ Unknown"
+            };
+        }
+
     }
 
     public class SemanticCaption

@@ -96,6 +96,8 @@
     private string searchEndpoint = "https://resumeaisearchstore.search.windows.net";
     private string searchIndexName = "resumefieldssearchindex";
     private string searchApiKey = "4psgmJYJRx5OdFgCXrkcPJRhYsbH1t3hQIVhcML2MHAzSeCSOFvJ";
+    private string textAnalyticsEndpoint = "https://resumetextanalytics.cognitiveservices.azure.com/";
+    private string textAnalyticsApiKey = "4COdef1lRN6TMQpl7zDWyEQLYBNhcFF6XZLf2YCq7aDyOHF9DMPJJQQJ99BKACYeBjFXJ3w3AAAaACOGtUNs";
 
     private string sessionId = Guid.NewGuid().ToString();
     [Inject] IJSRuntime JS { get; set; } = default!;
@@ -162,7 +164,9 @@
             searchEndpoint,
             searchIndexName,
             searchApiKey,
-            sessionId
+            sessionId,
+            textAnalyticsEndpoint,
+            textAnalyticsApiKey
         );
 
         Console.WriteLine("Search Agent initialized with Azure OpenAI. Type 'exit' to quit.");
@@ -254,7 +258,9 @@
                 searchEndpoint,
                 searchIndexName,
                 searchApiKey,
-                sessionId
+                sessionId,
+                textAnalyticsEndpoint,
+                textAnalyticsApiKey
             );
         
         agent.ClearConversationHistory();
