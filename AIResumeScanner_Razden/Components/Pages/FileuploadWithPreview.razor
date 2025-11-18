@@ -10,6 +10,8 @@
 @using DocumentFormat.OpenXml.Wordprocessing;
 @using Newtonsoft.Json;
 @using Azure.Storage.Blobs;
+@inject IJSRuntime JSRuntime;
+@inject ResumeValidationService ValidationService;
 
 
 <PageTitle>File Upload</PageTitle>
@@ -24,26 +26,6 @@
 
 		<InputFile id="fileInput" @key="fileInputKey" OnChange="OnFileSelected" multiple class="form-control"
 			accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
-
-		@* @if (selectedFiles.Count > 0)
-		{
-			<div class="file-list">
-				@foreach (var file in selectedFiles)
-				{
-					<div class="file-item">
-						<span class="file-name">@file.Name</span>
-						<button class="file-remove-btn" @onclick="() => RemoveFile(file)">✖</button>
-					</div>
-				}
-			</div>
-		} *@
-
-		@* @if (!string.IsNullOrEmpty(uploadMessage))
-		{
-			<div class="upload-status @(isUploadSuccess ? "success" : "error")">
-				@uploadMessage
-			</div>
-		} *@
 	</div>
 }
 
@@ -93,6 +75,98 @@
 		</div>
 	</div>
 }
+
+@if (showDocValidationPopup)
+{
+    <div class="vallidation-popup-overlay-file-upload">
+        <div class="vallidation-popup-content @(validationModalType == "success" ? "vallidation-popup-success" : "vallidation-popup-error")"
+             @onclick:stopPropagation="true">
+
+            @* Header *@
+            <div class="vallidation-popup-header">
+                <div class="popup-icon-text">
+                    @if (validationModalType == "success")
+                    {
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>Validation Successful</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>Validation Failed</span>
+                    }
+                </div>
+
+                <button type="button"
+                        class="vallidation-popup-close-btn"
+                        @onclick="CloseModal"
+                        aria-label="Close">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            @* Body *@
+            <div class="vallidation-popup-body">
+                <h6 class="vallidation-popup-filename">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    @currentValidationFileName
+                </h6>
+
+                <p class="vallidation-popup-message">@validationMessage</p>
+
+                @if (!string.IsNullOrEmpty(validationDetails))
+                {
+                    <div class="vallidation-popup-details @(validationModalType == "success" ? "vallidation-details-success" : "vallidation-details-error")">
+                        <div class="vallidation-details-header">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Details</strong>
+                        </div>
+
+                        <div class="vallidation-details-content">
+                            @if (!string.IsNullOrEmpty(documentType))
+                            {
+                                <div class="vallidation-detail-item">
+                                    <strong>Document Type:</strong> @documentType
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(validationConfidence))
+                            {
+                                <div class="detail-item">
+                                    <strong>Confidence:</strong> @validationConfidence%
+                                </div>
+                            }
+
+                            @if (matchedSections != null && matchedSections.Any())
+                            {
+                                <div class="vallidation-detail-item">
+                                    <strong>Found Sections:</strong> @string.Join(", ", matchedSections)
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(validationReason))
+                            {
+                                <hr class="vallidation-detail-divider" />
+                                <div class="vallidation-detail-reason">@validationReason</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @* Footer *@
+            <div class="vallidation-popup-footer">
+                <button type="button"
+                        class="vallidation-btn-popup-close"
+                        @onclick="CloseModal">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
 
 
 <style>
@@ -227,109 +301,348 @@
 		color: #333;
 	}
 
-	
-.popup-overlay-file-upload {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.45);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-}
 
-.popup-content {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 24px;
-    background: #fff;
-    padding: 45px 50px; /* ⬆️ Increased padding for more height */
-    border-radius: 16px;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25);
-    font-family: 'Segoe UI', sans-serif;
-    width: 50%; /* 50% width as before */
-    max-width: 700px;
-    min-width: 480px;
-    min-height: 220px; /* ⬆️ Added min height for better visual balance */
-    animation: fadeIn 0.3s ease-in-out;
-}
+	.popup-overlay-file-upload {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.5);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 9999;
+		animation: fadeIn 0.2s ease-in-out;
+	}
 
-.popup-success {
-    border-left: 8px solid #28a745;
-}
+	.popup-content {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 24px;
+		background: #fff;
+		padding: 45px 50px;
+		/* ⬆️ Increased padding for more height */
+		border-radius: 16px;
+		box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25);
+		font-family: 'Segoe UI', sans-serif;
+		width: 50%;
+		/* 50% width as before */
+		max-width: 700px;
+		min-width: 480px;
+		min-height: 220px;
+		/* ⬆️ Added min height for better visual balance */
+		animation: fadeIn 0.3s ease-in-out;
+	}
 
-.popup-error {
-    border-left: 8px solid #dc3545;
-}
+	.popup-success {
+		border-left: 8px solid #28a745;
+	}
 
-.popup-icon {
-    font-size: 48px;
-    flex-shrink: 0;
-    margin-top: 10px; /* adds a bit of vertical centering */
-}
+	.popup-error {
+		border-left: 8px solid #dc3545;
+	}
 
-.popup-success .popup-icon {
-    color: #28a745;
-}
+	.popup-icon {
+		font-size: 48px;
+		flex-shrink: 0;
+		margin-top: 10px;
+		/* adds a bit of vertical centering */
+	}
 
-.popup-error .popup-icon {
-    color: #dc3545;
-}
+	.popup-success .popup-icon {
+		color: #28a745;
+	}
 
-.popup-body {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center; /* ensures content is centered vertically */
-    gap: 24px; /* ⬆️ Slightly increased spacing for a more open look */
-    width: 100%;
-}
+	.popup-error .popup-icon {
+		color: #dc3545;
+	}
 
-.popup-message {
-    font-size: 18px;
-    font-weight: 500;
-    color: #333;
-    text-align: center;
-}
+	.popup-body {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		/* ensures content is centered vertically */
+		gap: 24px;
+		/* ⬆️ Slightly increased spacing for a more open look */
+		width: 100%;
+	}
 
-.popup-actions {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-}
+	.popup-message {
+		font-size: 18px;
+		font-weight: 500;
+		color: #333;
+		text-align: center;
+	}
 
-.popup-btn {
-    padding: 10px 22px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 15px;
-    transition: all 0.2s ease;
-}
+	.popup-actions {
+		display: flex;
+		justify-content: center;
+		gap: 16px;
+	}
 
-.close-btn {
-    background-color: #6c757d;
-    color: white;
-}
+	.popup-btn {
+		padding: 10px 22px;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		font-weight: 600;
+		font-size: 15px;
+		transition: all 0.2s ease;
+	}
 
-.close-btn:hover {
-    background-color: #5a6268;
-}
+	.close-btn {
+		background-color: #6c757d;
+		color: white;
+	}
 
-.navigate-btn {
-    background-color: #007bff;
-    color: white;
-}
+	.close-btn:hover {
+		background-color: #5a6268;
+	}
 
-.navigate-btn:hover {
-    background-color: #0056b3;
-}
+	.navigate-btn {
+		background-color: #007bff;
+		color: white;
+	}
+
+	.navigate-btn:hover {
+		background-color: #0056b3;
+	}
+
+/* Validation pop-up css */
+
+/* Overlay */
+    .vallidation-popup-overlay-file-upload {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @* @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+	@keyframes slideUp {
+        from {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    } *@
+
+    /* Popup Content */
+    .vallidation-popup-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 550px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        animation: slideUp 0.3s ease-out;
+        display: flex;
+        flex-direction: column;
+    }
+
+    
+
+    /* Header */
+    .vallidation-popup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .vallidation-popup-success .vallidation-popup-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+
+    .vallidation-popup-error .vallidation-popup-header {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+
+    .vallidation-popup-icon-text {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .vallidation-popup-icon-text i {
+        font-size: 1.5rem;
+    }
+
+    .vallidation-popup-close-btn {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .vallidation-popup-close-btn:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .vallidation-popup-close-btn:active {
+        background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Body */
+    .vallidation-popup-body {
+        padding: 24px;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .vallidation-popup-filename {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+    }
+
+    .vallidation-popup-message {
+        font-size: 0.95rem;
+        color: #4b5563;
+        margin-bottom: 16px;
+        line-height: 1.6;
+    }
+
+    /* Details Section */
+    .vallidation-popup-details {
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+    }
+
+    .vallidation-details-success {
+        background-color: #f0fdf4;
+        border: 1px solid #86efac;
+    }
+
+    .vallidation-details-error {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .vallidation-details-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .vallidation-details-content {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .vallidation-detail-item {
+        margin-bottom: 8px;
+        line-height: 1.5;
+    }
+
+    .vallidation-detail-item strong {
+        color: #374151;
+        font-weight: 600;
+    }
+
+    .vallidation-detail-divider {
+        margin: 12px 0;
+        border: 0;
+        border-top: 1px solid #d1d5db;
+    }
+
+    .vallidation-detail-reason {
+        color: #6b7280;
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    /* Footer */
+    .vallidation-popup-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: flex-end;
+        background-color: #f9fafb;
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
+    }
+
+    .vallidation-btn-popup-close {
+        background-color: #6b7280;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .vallidation-btn-popup-close:hover {
+        background-color: #4b5563;
+    }
+
+    .vallidation-btn-popup-close:active {
+        transform: scale(0.98);
+    }
+
+    /* Scrollbar Styling */
+    .vallidation-popup-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .vallidation-popup-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .vallidation-popup-content::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+
+    .vallidation-popup-content::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
 </style>
 
 
@@ -350,9 +663,19 @@
 
 	private string? uploadMessage;
 	private bool showPopup = false;
+
+	private bool showDocValidationPopup = false;
 	private bool isUploadSuccess = false;
 	private string popupMessage = string.Empty;
 
+	private string validationMessage = string.Empty;
+	private string validationDetails = string.Empty;
+	private string validationModalType = "success"; // success or danger
+	private string currentValidationFileName = string.Empty;
+	private string documentType = string.Empty;
+    private string validationConfidence = string.Empty;
+    private List<string> matchedSections = new();
+    private string validationReason = string.Empty;
 	[Inject] private NavigationManager NavigationManager { get; set; }
 	protected override async Task OnInitializedAsync()
 	{
@@ -372,6 +695,12 @@
 	{
 		showPopup = false;
 	}
+
+	private void CloseModal()
+    {
+        showDocValidationPopup = false;
+        StateHasChanged();
+    }
 
 	private void NavigateToJDSearch()
 	{
@@ -403,35 +732,93 @@
 	{
 		selectedFiles.Clear();
 		uploadedFileBytes.Clear();
+		myJsonFiles.Clear();
 		showLoader = true;
+		StateHasChanged();
 
+		var validFiles = new List<(string Name, byte[] Bytes, string Text)>();
 		foreach (var file in e.GetMultipleFiles())
 		{
-			// 🔹 Read and keep bytes in memory now
-			using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-			using var ms = new MemoryStream();
-			await stream.CopyToAsync(ms);
-			var fileBytes = ms.ToArray();
-
-			uploadedFileBytes.Add((file.Name, fileBytes));
-
-			// Existing metadata extraction logic
-			string base64 = Convert.ToBase64String(fileBytes);
-			ExtractMetaDataForResume extractMetaDataForResume = new();
-			var metaData = await extractMetaDataForResume.ExtractMetaData(
-			IsPdfMime(file) ? ExtractTextFromBase64Pdf(base64) : ReadWordText(new MemoryStream(fileBytes))
-			);
-
-			myJsonFiles.Add(new JsonViewer.JsonFileModel
+			try
 			{
-				FileName = file.Name,
-				Content = System.Text.Json.JsonSerializer.Serialize(metaData)
-			});
+				// 🔹 Read and keep bytes in memory now
+				using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+				using var ms = new MemoryStream();
+				await stream.CopyToAsync(ms);
+				var fileBytes = ms.ToArray();
+
+				uploadedFileBytes.Add((file.Name, fileBytes));
+
+				// Existing metadata extraction logic
+				string base64 = Convert.ToBase64String(fileBytes);
+				ExtractMetaDataForResume extractMetaDataForResume = new();
+				var metaData = await extractMetaDataForResume.ExtractMetaData(
+				IsPdfMime(file) ? ExtractTextFromBase64Pdf(base64) : ReadWordText(new MemoryStream(fileBytes))
+				);
+
+				currentValidationFileName = file.Name;
+				var validationResult = await ValidationService.ValidateResumeDocument(metaData);
+
+				if (!validationResult.IsValid)
+				{
+					validationModalType = "danger";
+					validationMessage = validationResult.Message;
+					documentType = validationResult.DocumentType;
+                    validationConfidence = validationResult.Confidence.ToString("F1");
+                    matchedSections = validationResult.MatchedSections;
+                    validationReason = validationResult.Reason;
+                    validationDetails = "show";
+					showLoader = false;
+                	await ShowModal();
+					break;
+				}
+				else
+				{
+					validFiles.Add((file.Name, fileBytes, metaData));
+
+					validationModalType = "success";
+					validationMessage = validationResult.Message;
+					@* validationDetails = $"Matched Keywords: {validationResult.MatchedKeywords} | " +
+					$"Confidence: {validationResult.Confidence:F1}%"; *@
+					myJsonFiles.Add(new JsonViewer.JsonFileModel
+					{
+						FileName = file.Name,
+						Content = System.Text.Json.JsonSerializer.Serialize(metaData)
+					});
+				}
+			}
+			catch (Exception ex)
+			{
+				currentValidationFileName = file.Name;
+                validationModalType = "danger";
+                validationMessage = $"Error processing file: {ex.Message}";
+                documentType = "Error";
+                validationConfidence = "0";
+                matchedSections.Clear();
+                validationReason = string.Empty;
+                validationDetails = string.Empty;
+
+                showLoader = false;
+                await ShowModal();
+                break;
+			}
 		}
 
 		showLoader = false;
 		StateHasChanged();
 	}
+
+	private async Task ShowModal()
+    {
+		showDocValidationPopup = true;
+		StateHasChanged();
+        @* await InvokeAsync(StateHasChanged); *@
+        @* await Task.Delay(100); // Small delay to ensure DOM is updated
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            var modal = new bootstrap.Modal(document.getElementById('validationModal'));
+            modal.show();
+        "); *@
+    }
 
 	bool IsPdfMime(IBrowserFile file) =>
 	file.ContentType == "application/pdf";
@@ -529,5 +916,4 @@
 			isUploading = false;
 		}
 	}
-
 }

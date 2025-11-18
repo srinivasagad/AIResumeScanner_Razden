@@ -2,6 +2,8 @@ using AIResumeScanner_Razden.Components;
 using AIResumeScanner_Razden.Services;
 using AIResumeScanner_Razden.Models;
 using Radzen;
+using Azure;
+using Azure.AI.TextAnalytics;
 
 namespace AIResumeScanner_Razden
 {
@@ -20,6 +22,17 @@ namespace AIResumeScanner_Razden
 
             builder.Services.AddRadzenComponents();
 
+            // Register Azure Text Analytics Service
+            builder.Services.AddSingleton<ResumeValidationService>(sp =>
+            {
+                // Get configuration from appsettings.json
+                var configuration = sp.GetRequiredService<IConfiguration>();
+                string endpoint = configuration["AzureTextAnalytics:Endpoint"];
+                string apiKey = configuration["AzureTextAnalytics:ApiKey"];
+
+                return new ResumeValidationService(endpoint, apiKey);
+            });
+
             builder.Services.AddHttpClient(); // Registers IHttpClientFactory
 
             builder.Services.AddSingleton<SignalRNotificationService>();
@@ -28,7 +41,8 @@ namespace AIResumeScanner_Razden
             //builder.Services.AddSingleton<AISearchPlugin>();
             //builder.Services.AddSingleton<ConversationStore>();
             builder.Services.AddSingleton(sp =>
-                                                builder.Configuration.GetSection("ApiSettings").Get<ApiSettings>());
+                                                builder.Configuration.GetSection("ApiSettings").Get<ApiSettings>()
+                                        );
             builder.Services.AddSignalR(
                                         options =>
                                         {
