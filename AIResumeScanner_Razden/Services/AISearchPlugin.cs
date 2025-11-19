@@ -488,16 +488,23 @@ namespace AIResumeScanner_Razden.Services
             return new string('⭐', stars);
         }
 
-        // Helper method to create visual score bar
+        // Helper method to create visual score bar      
         private string GetScoreBar(double score)
         {
-            // Create a visual bar (normalize to 0-10 scale)
-            int normalizedScore = (int)Math.Min(Math.Max(score * 2.5, 0), 10);
-            int filled = normalizedScore;
+            // Clamp score to 0–3
+            double clamped = Math.Min(Math.Max(score, 0), 3);
+
+            // Convert score (0–3) → percentage (0–100)
+            double percentage = (clamped / 3.0) * 100;
+
+            // Convert percentage to 10-block bar
+            int filled = (int)(percentage / 10);
             int empty = 10 - filled;
 
-            return $"{RepeatString("█", filled)}{RepeatString("░", empty)}";
+            return $"{RepeatString("█", filled)}{RepeatString("░", empty)} {percentage:0}%";
         }
+
+
 
         // Helper method to truncate text with ellipsis
         private string TruncateText(string text, int maxLength)
