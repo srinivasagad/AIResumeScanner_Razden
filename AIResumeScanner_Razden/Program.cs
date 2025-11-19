@@ -22,6 +22,7 @@ namespace AIResumeScanner_Razden
 
             builder.Services.AddRadzenComponents();
 
+            builder.Services.AddSingleton<ProfileValidationService>();
             // Register Azure Text Analytics Service
             builder.Services.AddSingleton<ResumeValidationService>(sp =>
             {
