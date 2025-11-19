@@ -12,6 +12,7 @@
 @using Azure.Storage.Blobs;
 @inject IJSRuntime JSRuntime;
 @inject ResumeValidationService ValidationService;
+@inject ProfileValidationService ProfileValidationService;
 
 
 <PageTitle>File Upload</PageTitle>
@@ -25,7 +26,7 @@
 		<label for="fileInput" class="file-label">Choose Profiles:</label>
 
 		<InputFile id="fileInput" @key="fileInputKey" OnChange="OnFileSelected" multiple class="form-control"
-			accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+		accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
 	</div>
 }
 
@@ -78,92 +79,92 @@
 
 @if (showDocValidationPopup)
 {
-    <div class="vallidation-popup-overlay-file-upload">
-        <div class="vallidation-popup-content @(validationModalType == "success" ? "vallidation-popup-success" : "vallidation-popup-error")"
-             @onclick:stopPropagation="true">
+	<div class="vallidation-popup-overlay-file-upload">
+		<div class="vallidation-popup-content @(validationModalType == "success" ? "vallidation-popup-success" : "vallidation-popup-error")"
+		@onclick:stopPropagation="true">
 
-            @* Header *@
-            <div class="vallidation-popup-header">
-                <div class="popup-icon-text">
-                    @if (validationModalType == "success")
-                    {
-                        <i class="bi bi-check-circle-fill"></i>
-                        <span>Validation Successful</span>
-                    }
-                    else
-                    {
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        <span>Validation Failed</span>
-                    }
-                </div>
+			@* Header *@
+			<div class="vallidation-popup-header">
+				<div class="popup-icon-text">
+					@if (validationModalType == "success")
+					{
+						<i class="bi bi-check-circle-fill"></i>
+						<span>Validation Successful</span>
+					}
+					else
+					{
+						<i class="bi bi-exclamation-triangle-fill"></i>
+						<span>Validation Failed</span>
+					}
+				</div>
 
-                <button type="button"
-                        class="vallidation-popup-close-btn"
-                        @onclick="CloseModal"
-                        aria-label="Close">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
+				<button type="button"
+				class="vallidation-popup-close-btn"
+				@onclick="CloseModal"
+				aria-label="Close">
+					<i class="bi bi-x-lg"></i>
+				</button>
+			</div>
 
-            @* Body *@
-            <div class="vallidation-popup-body">
-                <h6 class="vallidation-popup-filename">
-                    <i class="bi bi-file-earmark-text me-2"></i>
-                    @currentValidationFileName
-                </h6>
+			@* Body *@
+			<div class="vallidation-popup-body">
+				<h6 class="vallidation-popup-filename">
+					<i class="bi bi-file-earmark-text me-2"></i>
+					@currentValidationFileName
+				</h6>
 
-                <p class="vallidation-popup-message">@validationMessage</p>
+				<p class="vallidation-popup-message">@validationMessage</p>
 
-                @if (!string.IsNullOrEmpty(validationDetails))
-                {
-                    <div class="vallidation-popup-details @(validationModalType == "success" ? "vallidation-details-success" : "vallidation-details-error")">
-                        <div class="vallidation-details-header">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <strong>Details</strong>
-                        </div>
+				@if (!string.IsNullOrEmpty(validationDetails))
+				{
+					<div class="vallidation-popup-details @(validationModalType == "success" ? "vallidation-details-success" : "vallidation-details-error")">
+						<div class="vallidation-details-header">
+							<i class="bi bi-info-circle me-2"></i>
+							<strong>Details</strong>
+						</div>
 
-                        <div class="vallidation-details-content">
-                            @if (!string.IsNullOrEmpty(documentType))
-                            {
-                                <div class="vallidation-detail-item">
-                                    <strong>Document Type:</strong> @documentType
-                                </div>
-                            }
+						<div class="vallidation-details-content">
+							@if (!string.IsNullOrEmpty(documentType))
+							{
+								<div class="vallidation-detail-item">
+									<strong>Document Type:</strong> @documentType
+								</div>
+							}
 
-                            @if (!string.IsNullOrEmpty(validationConfidence))
-                            {
-                                <div class="detail-item">
-                                    <strong>Confidence:</strong> @validationConfidence%
-                                </div>
-                            }
+							@if (!string.IsNullOrEmpty(validationConfidence))
+							{
+								<div class="detail-item">
+									<strong>Confidence:</strong> @validationConfidence%
+								</div>
+							}
 
-                            @if (matchedSections != null && matchedSections.Any())
-                            {
-                                <div class="vallidation-detail-item">
-                                    <strong>Found Sections:</strong> @string.Join(", ", matchedSections)
-                                </div>
-                            }
+							@if (matchedSections != null && matchedSections.Any())
+							{
+								<div class="vallidation-detail-item">
+									<strong>Found Sections:</strong> @string.Join(", ", matchedSections)
+								</div>
+							}
 
-                            @if (!string.IsNullOrEmpty(validationReason))
-                            {
-                                <hr class="vallidation-detail-divider" />
-                                <div class="vallidation-detail-reason">@validationReason</div>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
+							@if (!string.IsNullOrEmpty(validationReason))
+							{
+								<hr class="vallidation-detail-divider" />
+								<div class="vallidation-detail-reason">@validationReason</div>
+							}
+						</div>
+					</div>
+				}
+			</div>
 
-            @* Footer *@
-            <div class="vallidation-popup-footer">
-                <button type="button"
-                        class="vallidation-btn-popup-close"
-                        @onclick="CloseModal">
-                    Close
-                </button>
-            </div>
-        </div>
-    </div>
+			@* Footer *@
+			<div class="vallidation-popup-footer">
+				<button type="button"
+				class="vallidation-btn-popup-close"
+				@onclick="CloseModal">
+					Close
+				</button>
+			</div>
+		</div>
+	</div>
 }
 
 
@@ -171,265 +172,265 @@
 
 <style>
 	.file-upload-container {
-		width: 100%;
-		max-width: 600px;
-		background: #f9f9f9;
-		border: 1px solid #ddd;
-		border-radius: 8px;
-		padding: 20px;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-		font-family: 'Segoe UI', sans-serif;
+	width: 100%;
+	max-width: 600px;
+	background: #f9f9f9;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	padding: 20px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+	font-family: 'Segoe UI', sans-serif;
 	}
 
 	.buttons-row {
-		display: flex;
-		flex-direction: row;
-		align-items: flex-end;
-		padding: 0px;
-		gap: 16px;
-		width: 100%;
-		height: 40px;
-		flex: none;
-		order: 5;
-		flex-grow: 0;
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+	padding: 0px;
+	gap: 16px;
+	width: 100%;
+	height: 40px;
+	flex: none;
+	order: 5;
+	flex-grow: 0;
 	}
 
 	.json-viewer-container {
-		padding: 0px !important;
+	padding: 0px !important;
 	}
 
 	.file-label {
-		display: block;
-		font-weight: 600;
-		margin-bottom: 8px;
-		color: #333;
+	display: block;
+	font-weight: 600;
+	margin-bottom: 8px;
+	color: #333;
 	}
 
 	.form-control {
-		width: 100%;
-		padding: 10px;
-		border: 1px solid #ccc;
-		border-radius: 6px;
-		background: #fff;
-		cursor: pointer;
+	width: 100%;
+	padding: 10px;
+	border: 1px solid #ccc;
+	border-radius: 6px;
+	background: #fff;
+	cursor: pointer;
 	}
 
 	.file-list {
-		margin-top: 15px;
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
+	margin-top: 15px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 	}
 
 	.file-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		background: #ffffff;
-		border: 1px solid #e0e0e0;
-		padding: 8px 12px;
-		border-radius: 6px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-		transition: background 0.2s ease;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	background: #ffffff;
+	border: 1px solid #e0e0e0;
+	padding: 8px 12px;
+	border-radius: 6px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+	transition: background 0.2s ease;
 	}
 
 	.file-item:hover {
-		background: #f1faff;
+	background: #f1faff;
 	}
 
 	.file-name {
-		font-size: 14px;
-		color: #333;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		flex-grow: 1;
+	font-size: 14px;
+	color: #333;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex-grow: 1;
 	}
 
 	.file-remove-btn {
-		background: none;
-		border: none;
-		color: #e74c3c;
-		font-size: 16px;
-		cursor: pointer;
-		transition: color 0.2s ease;
+	background: none;
+	border: none;
+	color: #e74c3c;
+	font-size: 16px;
+	cursor: pointer;
+	transition: color 0.2s ease;
 	}
 
 	.file-remove-btn:hover {
-		color: #c0392b;
+	color: #c0392b;
 	}
 
 	.cancel-btn {
-		margin-top: 15px;
-		padding: 10px 18px;
-		font-size: 15px;
-		font-weight: 600;
-		color: white;
-		background-color: #5c636a;
-		border: none;
-		border-radius: 6px;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
+	margin-top: 15px;
+	padding: 10px 18px;
+	font-size: 15px;
+	font-weight: 600;
+	color: white;
+	background-color: #5c636a;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
 	}
 
 	.submit-btn {
-		margin-top: 15px;
-		padding: 10px 18px;
-		font-size: 15px;
-		font-weight: 600;
-		color: white;
-		background-color: #007acc;
-		border: none;
-		border-radius: 6px;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
+	margin-top: 15px;
+	padding: 10px 18px;
+	font-size: 15px;
+	font-weight: 600;
+	color: white;
+	background-color: #007acc;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
 	}
 
 	.submit-btn:disabled {
-		background-color: #a0a0a0;
-		cursor: not-allowed;
+	background-color: #a0a0a0;
+	cursor: not-allowed;
 	}
 
 	.submit-btn:hover:not(:disabled) {
-		background-color: #005a9e;
+	background-color: #005a9e;
 	}
 
 	.upload-result {
-		margin-top: 12px;
-		font-size: 14px;
-		font-weight: 500;
-		color: #333;
+	margin-top: 12px;
+	font-size: 14px;
+	font-weight: 500;
+	color: #333;
 	}
 
 
 	.popup-overlay-file-upload {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		z-index: 9999;
-		animation: fadeIn 0.2s ease-in-out;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 9999;
+	animation: fadeIn 0.2s ease-in-out;
 	}
 
 	.popup-content {
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		justify-content: flex-start;
-		gap: 24px;
-		background: #fff;
-		padding: 45px 50px;
-		/* ⬆️ Increased padding for more height */
-		border-radius: 16px;
-		box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25);
-		font-family: 'Segoe UI', sans-serif;
-		width: 50%;
-		/* 50% width as before */
-		max-width: 700px;
-		min-width: 480px;
-		min-height: 220px;
-		/* ⬆️ Added min height for better visual balance */
-		animation: fadeIn 0.3s ease-in-out;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 24px;
+	background: #fff;
+	padding: 45px 50px;
+	/* ⬆️ Increased padding for more height */
+	border-radius: 16px;
+	box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25);
+	font-family: 'Segoe UI', sans-serif;
+	width: 50%;
+	/* 50% width as before */
+	max-width: 700px;
+	min-width: 480px;
+	min-height: 220px;
+	/* ⬆️ Added min height for better visual balance */
+	animation: fadeIn 0.3s ease-in-out;
 	}
 
 	.popup-success {
-		border-left: 8px solid #28a745;
+	border-left: 8px solid #28a745;
 	}
 
 	.popup-error {
-		border-left: 8px solid #dc3545;
+	border-left: 8px solid #dc3545;
 	}
 
 	.popup-icon {
-		font-size: 48px;
-		flex-shrink: 0;
-		margin-top: 10px;
-		/* adds a bit of vertical centering */
+	font-size: 48px;
+	flex-shrink: 0;
+	margin-top: 10px;
+	/* adds a bit of vertical centering */
 	}
 
 	.popup-success .popup-icon {
-		color: #28a745;
+	color: #28a745;
 	}
 
 	.popup-error .popup-icon {
-		color: #dc3545;
+	color: #dc3545;
 	}
 
 	.popup-body {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		/* ensures content is centered vertically */
-		gap: 24px;
-		/* ⬆️ Slightly increased spacing for a more open look */
-		width: 100%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	/* ensures content is centered vertically */
+	gap: 24px;
+	/* ⬆️ Slightly increased spacing for a more open look */
+	width: 100%;
 	}
 
 	.popup-message {
-		font-size: 18px;
-		font-weight: 500;
-		color: #333;
-		text-align: center;
+	font-size: 18px;
+	font-weight: 500;
+	color: #333;
+	text-align: center;
 	}
 
 	.popup-actions {
-		display: flex;
-		justify-content: center;
-		gap: 16px;
+	display: flex;
+	justify-content: center;
+	gap: 16px;
 	}
 
 	.popup-btn {
-		padding: 10px 22px;
-		border: none;
-		border-radius: 8px;
-		cursor: pointer;
-		font-weight: 600;
-		font-size: 15px;
-		transition: all 0.2s ease;
+	padding: 10px 22px;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 15px;
+	transition: all 0.2s ease;
 	}
 
 	.close-btn {
-		background-color: #6c757d;
-		color: white;
+	background-color: #6c757d;
+	color: white;
 	}
 
 	.close-btn:hover {
-		background-color: #5a6268;
+	background-color: #5a6268;
 	}
 
 	.navigate-btn {
-		background-color: #007bff;
-		color: white;
+	background-color: #007bff;
+	color: white;
 	}
 
 	.navigate-btn:hover {
-		background-color: #0056b3;
+	background-color: #0056b3;
 	}
 
-/* Validation pop-up css */
+	/* Validation pop-up css */
 
-/* Overlay */
-    .vallidation-popup-overlay-file-upload {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        animation: fadeIn 0.2s ease-in-out;
-    }
+	/* Overlay */
+	.vallidation-popup-overlay-file-upload {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 9999;
+	animation: fadeIn 0.2s ease-in-out;
+	}
 
-    @* @keyframes fadeIn {
+	@* @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
     }
@@ -445,203 +446,203 @@
         }
     } *@
 
-    /* Popup Content */
-    .vallidation-popup-content {
-        background: white;
-        border-radius: 12px;
-        width: 90%;
-        max-width: 550px;
-        max-height: 85vh;
-        overflow-y: auto;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        animation: slideUp 0.3s ease-out;
-        display: flex;
-        flex-direction: column;
-    }
+	/* Popup Content */
+	.vallidation-popup-content {
+	background: white;
+	border-radius: 12px;
+	width: 90%;
+	max-width: 550px;
+	max-height: 85vh;
+	overflow-y: auto;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+	animation: slideUp 0.3s ease-out;
+	display: flex;
+	flex-direction: column;
+	}
 
-    
 
-    /* Header */
-    .vallidation-popup-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px;
-        border-bottom: 1px solid #e5e7eb;
-    }
 
-    .vallidation-popup-success .vallidation-popup-header {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
-    }
+	/* Header */
+	.vallidation-popup-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 20px 24px;
+	border-bottom: 1px solid #e5e7eb;
+	}
 
-    .vallidation-popup-error .vallidation-popup-header {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: white;
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
-    }
+	.vallidation-popup-success .vallidation-popup-header {
+	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	color: white;
+	border-top-left-radius: 12px;
+	border-top-right-radius: 12px;
+	}
 
-    .vallidation-popup-icon-text {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-size: 1.1rem;
-        font-weight: 600;
-    }
+	.vallidation-popup-error .vallidation-popup-header {
+	background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+	color: white;
+	border-top-left-radius: 12px;
+	border-top-right-radius: 12px;
+	}
 
-    .vallidation-popup-icon-text i {
-        font-size: 1.5rem;
-    }
+	.vallidation-popup-icon-text {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 1.1rem;
+	font-weight: 600;
+	}
 
-    .vallidation-popup-close-btn {
-        background: transparent;
-        border: none;
-        color: white;
-        font-size: 1.2rem;
-        cursor: pointer;
-        padding: 4px 8px;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+	.vallidation-popup-icon-text i {
+	font-size: 1.5rem;
+	}
 
-    .vallidation-popup-close-btn:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-    }
+	.vallidation-popup-close-btn {
+	background: transparent;
+	border: none;
+	color: white;
+	font-size: 1.2rem;
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 4px;
+	transition: background-color 0.2s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	}
 
-    .vallidation-popup-close-btn:active {
-        background-color: rgba(255, 255, 255, 0.3);
-    }
+	.vallidation-popup-close-btn:hover {
+	background-color: rgba(255, 255, 255, 0.2);
+	}
 
-    /* Body */
-    .vallidation-popup-body {
-        padding: 24px;
-        flex: 1;
-        overflow-y: auto;
-    }
+	.vallidation-popup-close-btn:active {
+	background-color: rgba(255, 255, 255, 0.3);
+	}
 
-    .vallidation-popup-filename {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #1f2937;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-    }
+	/* Body */
+	.vallidation-popup-body {
+	padding: 24px;
+	flex: 1;
+	overflow-y: auto;
+	}
 
-    .vallidation-popup-message {
-        font-size: 0.95rem;
-        color: #4b5563;
-        margin-bottom: 16px;
-        line-height: 1.6;
-    }
+	.vallidation-popup-filename {
+	font-size: 1rem;
+	font-weight: 600;
+	color: #1f2937;
+	margin-bottom: 12px;
+	display: flex;
+	align-items: center;
+	}
 
-    /* Details Section */
-    .vallidation-popup-details {
-        border-radius: 8px;
-        padding: 16px;
-        margin-top: 16px;
-    }
+	.vallidation-popup-message {
+	font-size: 0.95rem;
+	color: #4b5563;
+	margin-bottom: 16px;
+	line-height: 1.6;
+	}
 
-    .vallidation-details-success {
-        background-color: #f0fdf4;
-        border: 1px solid #86efac;
-    }
+	/* Details Section */
+	.vallidation-popup-details {
+	border-radius: 8px;
+	padding: 16px;
+	margin-top: 16px;
+	}
 
-    .vallidation-details-error {
-        background-color: #fef2f2;
-        border: 1px solid #fecaca;
-    }
+	.vallidation-details-success {
+	background-color: #f0fdf4;
+	border: 1px solid #86efac;
+	}
 
-    .vallidation-details-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 12px;
-        color: #374151;
-        font-size: 0.9rem;
-    }
+	.vallidation-details-error {
+	background-color: #fef2f2;
+	border: 1px solid #fecaca;
+	}
 
-    .vallidation-details-content {
-        font-size: 0.875rem;
-        color: #6b7280;
-    }
+	.vallidation-details-header {
+	display: flex;
+	align-items: center;
+	margin-bottom: 12px;
+	color: #374151;
+	font-size: 0.9rem;
+	}
 
-    .vallidation-detail-item {
-        margin-bottom: 8px;
-        line-height: 1.5;
-    }
+	.vallidation-details-content {
+	font-size: 0.875rem;
+	color: #6b7280;
+	}
 
-    .vallidation-detail-item strong {
-        color: #374151;
-        font-weight: 600;
-    }
+	.vallidation-detail-item {
+	margin-bottom: 8px;
+	line-height: 1.5;
+	}
 
-    .vallidation-detail-divider {
-        margin: 12px 0;
-        border: 0;
-        border-top: 1px solid #d1d5db;
-    }
+	.vallidation-detail-item strong {
+	color: #374151;
+	font-weight: 600;
+	}
 
-    .vallidation-detail-reason {
-        color: #6b7280;
-        font-size: 0.875rem;
-        line-height: 1.6;
-    }
+	.vallidation-detail-divider {
+	margin: 12px 0;
+	border: 0;
+	border-top: 1px solid #d1d5db;
+	}
 
-    /* Footer */
-    .vallidation-popup-footer {
-        padding: 16px 24px;
-        border-top: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: flex-end;
-        background-color: #f9fafb;
-        border-bottom-left-radius: 12px;
-        border-bottom-right-radius: 12px;
-    }
+	.vallidation-detail-reason {
+	color: #6b7280;
+	font-size: 0.875rem;
+	line-height: 1.6;
+	}
 
-    .vallidation-btn-popup-close {
-        background-color: #6b7280;
-        color: white;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 6px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color 0.2s, transform 0.1s;
-    }
+	/* Footer */
+	.vallidation-popup-footer {
+	padding: 16px 24px;
+	border-top: 1px solid #e5e7eb;
+	display: flex;
+	justify-content: flex-end;
+	background-color: #f9fafb;
+	border-bottom-left-radius: 12px;
+	border-bottom-right-radius: 12px;
+	}
 
-    .vallidation-btn-popup-close:hover {
-        background-color: #4b5563;
-    }
+	.vallidation-btn-popup-close {
+	background-color: #6b7280;
+	color: white;
+	border: none;
+	padding: 10px 24px;
+	border-radius: 6px;
+	font-size: 0.9rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color 0.2s, transform 0.1s;
+	}
 
-    .vallidation-btn-popup-close:active {
-        transform: scale(0.98);
-    }
+	.vallidation-btn-popup-close:hover {
+	background-color: #4b5563;
+	}
 
-    /* Scrollbar Styling */
-    .vallidation-popup-content::-webkit-scrollbar {
-        width: 8px;
-    }
+	.vallidation-btn-popup-close:active {
+	transform: scale(0.98);
+	}
 
-    .vallidation-popup-content::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
+	/* Scrollbar Styling */
+	.vallidation-popup-content::-webkit-scrollbar {
+	width: 8px;
+	}
 
-    .vallidation-popup-content::-webkit-scrollbar-thumb {
-        background: #888;
-        border-radius: 10px;
-    }
+	.vallidation-popup-content::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 10px;
+	}
 
-    .vallidation-popup-content::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
+	.vallidation-popup-content::-webkit-scrollbar-thumb {
+	background: #888;
+	border-radius: 10px;
+	}
+
+	.vallidation-popup-content::-webkit-scrollbar-thumb:hover {
+	background: #555;
+	}
 
 </style>
 
@@ -673,9 +674,9 @@
 	private string validationModalType = "success"; // success or danger
 	private string currentValidationFileName = string.Empty;
 	private string documentType = string.Empty;
-    private string validationConfidence = string.Empty;
-    private List<string> matchedSections = new();
-    private string validationReason = string.Empty;
+	private string validationConfidence = string.Empty;
+	private List<string> matchedSections = new();
+	private string validationReason = string.Empty;
 	[Inject] private NavigationManager NavigationManager { get; set; }
 	protected override async Task OnInitializedAsync()
 	{
@@ -697,10 +698,10 @@
 	}
 
 	private void CloseModal()
-    {
-        showDocValidationPopup = false;
-        StateHasChanged();
-    }
+	{
+		showDocValidationPopup = false;
+		StateHasChanged();
+	}
 
 	private void NavigateToJDSearch()
 	{
@@ -757,6 +758,13 @@
 				);
 
 				currentValidationFileName = file.Name;
+
+                //Use result from ProfileValidationService to validate profile document
+				var result = await ProfileValidationService.ValidateResumeDocument(metaData);
+
+				
+				
+
 				var validationResult = await ValidationService.ValidateResumeDocument(metaData);
 
 				if (!validationResult.IsValid)
