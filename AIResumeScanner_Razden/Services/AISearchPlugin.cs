@@ -46,7 +46,7 @@ namespace AIResumeScanner_Razden.Services
         [KernelFunction, Description("Perform semantic search using vector embeddings")]
         public async Task<string> SemanticSearch(
             [Description("The search query")] string query,
-            [Description("Number of results")] int top = 3)
+            [Description("Number of results")] int top = 20)
         {
             try
             {
@@ -355,7 +355,7 @@ namespace AIResumeScanner_Razden.Services
         private string FormatSearchResults(List<SearchResultModel> results, long totalCount)
         {
             var formatted = new StringBuilder();
-            formatted.AppendLine($"🔍 Found {totalCount} relevant results\n");
+            formatted.AppendLine($"🔍 Found {totalCount} relevant profiles\n");
             formatted.AppendLine("═══════════════════════════════════════════════════════\n");
 
             foreach (var result in results)
