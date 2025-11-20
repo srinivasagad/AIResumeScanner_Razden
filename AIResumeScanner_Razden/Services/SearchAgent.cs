@@ -44,7 +44,7 @@ namespace AIResumeScanner_Razden.Services
             );
 
             // Add AI Search plugin
-            var searchPlugin = new AISearchPlugin(searchEndpoint, searchIndexName, searchApiKey, embeddingDeploymentName, textAnalyticsEndpoint, textAnalyticsApiKey);
+            var searchPlugin = new AISearchPlugin(searchEndpoint, searchIndexName, searchApiKey);
             builder.Plugins.AddFromObject(searchPlugin, "AISearch");
 
             _kernel = builder.Build();
@@ -138,6 +138,7 @@ Confidence: ███████░░░ (70%)
 - For multiple interpretations: Present top results with confidence scores
 - Never invent or hallucinate information not in search results
 - Always indicate source quality with star ratings
+
 
 Remember: Your goal is to provide accurate, well-formatted, visually engaging responses that help users quickly understand the information and access sources easily!
                 ",

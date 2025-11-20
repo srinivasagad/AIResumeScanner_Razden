@@ -11,12 +11,7 @@
         public List<Requirement> requirements { get; set; }
     }
 
-    public class ConfidenceScores
-    {
-        public double? positive { get; set; }
-        public double? negative { get; set; }
-        public double? neutral { get; set; }
-    }
+    
 
     public class Requirement
     {
