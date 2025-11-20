@@ -12,6 +12,10 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using OpenAI.Chat;
+using OpenAI;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace AIResumeScanner_Razden.Services
 {
@@ -19,34 +23,27 @@ namespace AIResumeScanner_Razden.Services
     {
 
         private readonly SearchClient _searchClient;
-        private readonly string _embeddingModel;
-        private readonly TextAnalyticsClient _textAnalyticsClient;
+        public IConfiguration _configuration;
 
-        public AISearchPlugin(string endpoint, string indexName, string apiKey, string embeddingModel = "text-embedding-ada-002"
-        ,string textAnalyticsEndpoint = null, string textAnalyticsKey = null)
+        public AISearchPlugin(string endpoint, string indexName, string apiKey)
         {
             _searchClient = new SearchClient(
                 new Uri(endpoint),
                 indexName,
                 new AzureKeyCredential(apiKey)
             );
-            _embeddingModel = embeddingModel;
 
-            // Initialize Text Analytics client if credentials provided
-
-            if (!string.IsNullOrEmpty(textAnalyticsEndpoint) && !string.IsNullOrEmpty(textAnalyticsKey))
-            {
-                _textAnalyticsClient = new TextAnalyticsClient(
-                    new Uri(textAnalyticsEndpoint),
-                    new AzureKeyCredential(textAnalyticsKey)
-                );
-            }
+            var builder = new ConfigurationBuilder()
+                         .SetBasePath(Directory.GetCurrentDirectory())
+                         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                         .AddEnvironmentVariables();
+            _configuration = builder.Build();
         }
 
         [KernelFunction, Description("Perform semantic search using vector embeddings")]
         public async Task<string> SemanticSearch(
             [Description("The search query")] string query,
-            [Description("Number of results")] int top = 20)
+            [Description("Number of results")] int top = 10)
         {
             try
             {
@@ -81,11 +78,12 @@ namespace AIResumeScanner_Razden.Services
 
                 var response = await _searchClient.SearchAsync<Azure.Search.Documents.Models.SearchDocument>(query, searchOptions);
 
+                
+
+                
                 // Add sentiment analysis to results
-
-                var resultsWithSentiment = await AddSentimentAnalysis(response);
-                return FormatSearchResults(resultsWithSentiment, response.Value.TotalCount ?? 0);
-
+                var resultsWithSentimentWithGPT = await AddSentimentAnalysisWithGPT(response, query);
+                return FormatSearchResults(resultsWithSentimentWithGPT, response.Value.TotalCount ?? 0);
 
             }
             catch (Exception ex)
@@ -94,68 +92,199 @@ namespace AIResumeScanner_Razden.Services
             }
         }
 
-        private async Task<List<SearchResultModel>> AddSentimentAnalysis(SearchResults<Azure.Search.Documents.Models.SearchDocument> results)
+        private async Task<List<SearchResultModel>> AddSentimentAnalysisWithGPT(SearchResults<Azure.Search.Documents.Models.SearchDocument> results, string userQuery)
         {
             var parsedResults = ParseSearchResults(results);
 
-            // If Text Analytics client is not initialized, return without sentiment
-            if (_textAnalyticsClient == null)
-                return parsedResults;
-
+            ConfidenceScores confidenceScores;
+            var filteredResults = parsedResults
+                                    .GroupBy(r => r.FileName)
+                                    .Select(g => g.First())
+                                    .ToList();
             try
             {
-                // Prepare documents for batch sentiment analysis
-                var documentsToAnalyze = new List<string>();
-                var validResults = new List<SearchResultModel>();
-
-                foreach (var result in parsedResults)
+                foreach (var result in filteredResults)
                 {
-                    // Get content for analysis (prioritize Content, fallback to chunks)
+                    // Get content for analysis  
                     var contentForAnalysis = !string.IsNullOrEmpty(result.Content)
                         ? result.Content
                         : result.Chunks.Any()
-                            ? string.Join(" ", result.Chunks.Take(3))
+                            ? string.Join(" ", result.Chunks)
                             : "";
 
-                    // Truncate to 5120 characters (Text Analytics limit)
                     if (!string.IsNullOrEmpty(contentForAnalysis))
                     {
-                        if (contentForAnalysis.Length > 5120)
-                            contentForAnalysis = contentForAnalysis.Substring(0, 5120);
 
-                        documentsToAnalyze.Add(contentForAnalysis);
-                        validResults.Add(result);
+                        var sentiment = await AnalyzeSentimentWithGPT4(contentForAnalysis, userQuery);
+
+                        result.IsTailored = sentiment.IsTailored;
+                        result.MatchWithJobDescription = sentiment.MatchWithJobDescription;
+
+                        // Map RequirementModel to Requirement  
+                        List<Requirement> requirements = sentiment.Requirements
+                            .Select(req => new Requirement
+                            {
+                                requirement = req.Requirement,
+                                isMatched = req.IsMatched,
+                                evidence = req.Evidence
+                            }).ToList();
+
+                        result.Requirements = requirements;
+                        result.Reasoning = sentiment.Reasoning;
+                        result.Sentiment = sentiment.Sentiment;
+                        confidenceScores = new ConfidenceScores();
+                        confidenceScores.Positive = (float)sentiment.PositiveScore;
+                        confidenceScores.Neutral = (float)sentiment.NeutralScore;
+                        confidenceScores.Negative = (float)sentiment.NegativeScore;
+                        result.ConfidenceScores = confidenceScores;
                     }
                 }
 
-                // Perform batch sentiment analysis
-                if (documentsToAnalyze.Any())
-                {
-                    var sentimentResults = await _textAnalyticsClient.AnalyzeSentimentBatchAsync(documentsToAnalyze);
+                return filteredResults;
 
-                    for (int i = 0; i < validResults.Count; i++)
-                    {
-                        if (!sentimentResults.Value[i].HasError)
-                        {
-                            var sentiment = sentimentResults.Value[i].DocumentSentiment;
-                            validResults[i].Sentiment = sentiment.Sentiment.ToString();
-                            validResults[i].PositiveScore = sentiment.ConfidenceScores.Positive;
-                            validResults[i].NeutralScore = sentiment.ConfidenceScores.Neutral;
-                            validResults[i].NegativeScore = sentiment.ConfidenceScores.Negative;
-                        }
-                    }
-                }
-
-                return parsedResults;
             }
             catch (Exception ex)
             {
-                // Log error but return results without sentiment
                 Console.WriteLine($"Sentiment analysis error: {ex.Message}");
-                return parsedResults;
+                return filteredResults;
             }
         }
 
+        private async Task<SentimentResult> AnalyzeSentimentWithGPT4(string text, string userQuery)
+        {
+            var resumePrompt = $@"
+                                    You are an AI assistant. Given a job description and a resume, analyze if the resume matches the exact requirements in the job description.
+
+                                    For each requirement below, check if it is explicitly or implicitly present anywhere in the resume (including skills, work experience, education, certifications, projects, communication skills, collaboration and adaptability skills, domain knowledge). For each, provide:
+                                        - Requirement: The skill or requirement from the job description.
+                                        - IsMatched: true if present, false if not, or null if unclear.
+                                        - Evidence: The relevant text, section, or excerpt from any part of the resume that supports the match, or null if not found.
+
+
+                                            Job Description
+                                           -{userQuery} 
+                                                                               
+
+                                          Provide the result in JSON format with the following fields:
+                                        - OverallSentiment: The overall sentiment of the resume (e.g., ""Positive"", ""Negative"", or null if not determined).
+                                        
+                                            If any value cannot be determined, return null for that field.
+                              ";
+
+            string resumeText = $"{text}";
+            var azureOpenAITokenCount = _configuration.GetSection("AzureOpenAI")["ChatTokenCount"];
+            if (string.IsNullOrEmpty(azureOpenAITokenCount))
+            {
+                Console.WriteLine("Please set the token count in app.settings.json");
+            }
+            var messages = new List<OpenAI.Chat.ChatMessage>
+                                                        {
+                                                           new SystemChatMessage(resumePrompt),
+                                                           new UserChatMessage(resumeText)
+                                                        };
+
+            // Create chat completion options
+            var options = new ChatCompletionOptions
+            {
+                Temperature = (float)0.1,
+                MaxOutputTokenCount = Convert.ToInt32(azureOpenAITokenCount),
+
+                TopP = (float)0.95,
+                FrequencyPenalty = (float)0,
+                PresencePenalty = (float)0
+            };
+
+
+            var azureOpenAISection = _configuration.GetSection("AzureOpenAI");
+            var azureOpenAIEndPoint = azureOpenAISection["OpenAIEndPoint"];
+            if (string.IsNullOrEmpty(azureOpenAIEndPoint))
+            {
+                Console.WriteLine("Please set the AZURE_OPENAI_ENDPOINT in app.settings.json");
+            }
+
+            var azureOpenAIKey = azureOpenAISection["OpenAIKey"];
+            if (string.IsNullOrEmpty(azureOpenAIKey))
+            {
+                Console.WriteLine("Please set the AZURE_OPENAI_KEY in app.settings.json");
+            }
+
+            var azureOpenAIDeploymentName = azureOpenAISection["ChatDeploymentName"];
+            if (string.IsNullOrEmpty(azureOpenAIDeploymentName))
+            {
+                Console.WriteLine("Please set the DeploymentName in app.settings.json");
+            }
+
+            AzureKeyCredential credential = new AzureKeyCredential(azureOpenAIKey);
+
+            // Initialize the AzureOpenAIClient
+            AzureOpenAIClient azureClient = new(new Uri(azureOpenAIEndPoint), credential);
+            // Initialize the ChatClient with the specified deployment name
+            ChatClient chatClient = azureClient.GetChatClient(azureOpenAIDeploymentName);
+            // Create the chat completion request
+            ChatCompletion completion = await chatClient.CompleteChatAsync(messages, options);
+
+            string cleanJson = string.Empty;
+            if (completion != null)
+            {
+                // Get the assistant's response content (the JSON string)
+                string responseJson = completion.Content[0].Text.ToString();
+
+                var match = Regex.Match(responseJson, @"(\{[\s\S]*\}|\[[\s\S]*\])");
+                if (match.Success)
+                {
+                    cleanJson = match.Value;
+                }
+            }
+            return ParseSentimentResponse(cleanJson);
+        }
+
+        private SentimentResult ParseSentimentResponse(string jsonResponse)
+        {
+            try
+            {
+                // Clean up the response in case GPT-4 adds markdown formatting
+                jsonResponse = jsonResponse.Trim();
+                if (jsonResponse.StartsWith("```json"))
+                    jsonResponse = jsonResponse.Substring(7);
+                if (jsonResponse.StartsWith("```"))
+                    jsonResponse = jsonResponse.Substring(3);
+                if (jsonResponse.EndsWith("```"))
+                    jsonResponse = jsonResponse.Substring(0, jsonResponse.Length - 3);
+                jsonResponse = jsonResponse.Trim();
+
+                var sentimentData = JsonSerializer.Deserialize<SentimentJsonResponse>(jsonResponse, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return new SentimentResult
+                {
+                    MatchWithJobDescription = sentimentData.MatchWithJobDescription,
+                    IsTailored = sentimentData.IsTailored,
+                    Reasoning = sentimentData.Reasoning,
+                    Requirements = sentimentData.Requirements,
+                    Sentiment = sentimentData.OverallSentiment,
+                    PositiveScore = sentimentData.PositiveScore,
+                    NeutralScore = sentimentData.NeutralScore,
+                    NegativeScore = sentimentData.NegativeScore                  
+                    
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing sentiment response: {ex.Message}");
+                // Return neutral sentiment as fallback
+                return new SentimentResult
+                {
+                    Sentiment = "Neutral",
+                    PositiveScore = 0.0,
+                    NeutralScore = 1.0,
+                    NegativeScore = 0.0
+                };
+            }
+        }
+
+      
         public async Task<float[]> GenerateEmbedding(string text)
         {
             string endpoint = "https://resumeembeddingendpoint.openai.azure.com/";
@@ -179,81 +308,7 @@ namespace AIResumeScanner_Razden.Services
             }
             return Array.Empty<float>();
         }
-
-        private string FormatSearchResults1(List<SearchResultModel> results, long totalCount)
-        {
-            var formatted = new StringBuilder();
-            formatted.AppendLine($"Found {totalCount} results:\n");
-
-            foreach (var result in results)
-            {
-                formatted.AppendLine($"Rank #{result.Rank} - Result {result.Rank}:");
-
-                if (!string.IsNullOrEmpty(result.Title))
-                    formatted.AppendLine($"  Title: {result.Title}");
-
-                if (!string.IsNullOrEmpty(result.FileName))
-                    //formatted.AppendLine($"  File Name: {result.FileName}");
-                    formatted.AppendLine($"  FileName Url: <a href='{result.FileName}' >Source</a>");
-
-                if (!string.IsNullOrEmpty(result.Category))
-                    formatted.AppendLine($"  Category: {result.Category}");
-
-                if (result.Skills.Any())
-                    formatted.AppendLine($"  Skills: {string.Join(", ", result.Skills)}");
-
-                if (!string.IsNullOrEmpty(result.ContentPreview))
-                    formatted.AppendLine($"  Content: {result.ContentPreview}");
-
-                if (result.Chunks.Any())
-                {
-                    formatted.AppendLine($"  Chunks ({result.TotalChunks}):");
-                    for (int i = 0; i < Math.Min(3, result.Chunks.Count); i++)
-                    {
-                        formatted.AppendLine($"    Chunk {i + 1}: {result.ChunkPreviews[i]}");
-                    }
-                    if (result.TotalChunks > 3)
-                        formatted.AppendLine($"    ... and {result.TotalChunks - 3} more chunks");
-                }
-
-                if (result.SearchScore.HasValue)
-                    formatted.AppendLine($"  Search Score: {result.SearchScore.Value:F4}");
-
-                if (result.RerankerScore.HasValue)
-                    formatted.AppendLine($"  Reranker Score: {result.RerankerScore.Value:F4} {result.ScoreLevel}");
-
-                if (result.SemanticCaptions.Any())
-                {
-                    formatted.AppendLine($"\n💡 Semantic Captions:");
-                    foreach (var caption in result.SemanticCaptions.Take(2))
-                    {
-                        formatted.AppendLine($"   • {caption.Text}");
-                    }
-                }
-
-                if (result.Highlights.Any())
-                {
-                    formatted.AppendLine($"\n✨ Highlights:");
-                    foreach (var highlight in result.Highlights.Take(2))
-                    {
-                        formatted.AppendLine($"   {highlight.Key}:");
-                        foreach (var value in highlight.Value.Take(2))
-                        {
-                            formatted.AppendLine($"      - {value}");
-                        }
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(result.MetadataUrl))
-                    formatted.AppendLine($"  Metadata Url: {result.MetadataUrl}");
-
-
-                formatted.AppendLine();
-            }
-
-            return formatted.ToString();
-        }
-
+              
         private List<SearchResultModel> ParseSearchResults(SearchResults<Azure.Search.Documents.Models.SearchDocument> results)
         {
             var searchResults = new List<SearchResultModel>();
@@ -346,130 +401,109 @@ namespace AIResumeScanner_Razden.Services
 
 
         // Usage
-        private string FormatSearchResults(SearchResults<Azure.Search.Documents.Models.SearchDocument> results)
-        {
-            var parsedResults = ParseSearchResults(results);
-            return FormatSearchResults(parsedResults, results.TotalCount ?? 0);
-        }
+       
 
         private string FormatSearchResults(List<SearchResultModel> results, long totalCount)
         {
             var formatted = new StringBuilder();
-            formatted.AppendLine($"🔍 Found {totalCount} relevant profiles\n");
+            int positiveCount = results.Count(r => string.Equals(r.Sentiment, "Positive", StringComparison.OrdinalIgnoreCase));
+
+
+            formatted.AppendLine($"🔍 Found {positiveCount} relevant profiles\n");
             formatted.AppendLine("═══════════════════════════════════════════════════════\n");
 
             foreach (var result in results)
             {
-                // Calculate star rating based on reranker score or search score
-                string starRating = GetStarRating(result.RerankerScore ?? result.SearchScore ?? 0);
-
-                formatted.AppendLine($"📄 Result #{result.Rank} {starRating}");
-                formatted.AppendLine("───────────────────────────────────────────────────────");
-
-                if (!string.IsNullOrEmpty(result.Title))
-                    formatted.AppendLine($"📌 Title: {result.Title}");
-
-                //if (!string.IsNullOrEmpty(result.FileName))
-                //    formatted.AppendLine($"📁 File: {result.FileName}");
-
-                if (!string.IsNullOrEmpty(result.Category))
-                    formatted.AppendLine($"🏷️  Category: {result.Category}");
-
-                if (result.Skills.Any())
-                    formatted.AppendLine($"💼 Skills: {string.Join(", ", result.Skills)}");
-
-                // Display sentiment analysis results
-                if (!string.IsNullOrEmpty(result.Sentiment))
+                if (result.Sentiment != null && result.Sentiment.ToString().ToLower() == "positive")
                 {
-                    formatted.AppendLine($"\n💭 {result.SentimentLevel}");
-                    formatted.AppendLine($"   • Positive: {GetSentimentBar(result.PositiveScore)} {result.PositiveScore:P1}");
-                    formatted.AppendLine($"   • Neutral:  {GetSentimentBar(result.NeutralScore)} {result.NeutralScore:P1}");
-                    formatted.AppendLine($"   • Negative: {GetSentimentBar(result.NegativeScore)} {result.NegativeScore:P1}");
-                }
 
 
-                // Display scores with visual indicators
-                if (result.RerankerScore.HasValue)
-                {
-                    string scoreBar = GetScoreBar(result.RerankerScore.Value);
-                    formatted.AppendLine($"\n🎯 Relevance: {scoreBar} ({result.RerankerScore.Value:F2})");
-                }
-                else if (result.SearchScore.HasValue)
-                {
-                    string scoreBar = GetScoreBar(result.SearchScore.Value);
-                    formatted.AppendLine($"🎯 Score: {scoreBar} ({result.SearchScore.Value:F2})");
-                }
+                    // Calculate star rating based on reranker score or search score
+                    string starRating = GetStarRating(result.RerankerScore ?? result.SearchScore ?? 0);
 
-                // Semantic captions with highlighting
-                if (result.SemanticCaptions.Any())
-                {
-                    formatted.AppendLine($"\n💡 Key Insights:");
-                    foreach (var caption in result.SemanticCaptions.Take(2))
+                    formatted.AppendLine($"📄 Result #{result.Rank} {starRating}");
+                    formatted.AppendLine("───────────────────────────────────────────────────────");
+
+                    if (!string.IsNullOrEmpty(result.Title))
+                        formatted.AppendLine($"📌 Title: {result.Title}");
+
+                    //if (!string.IsNullOrEmpty(result.FileName))
+                    //    formatted.AppendLine($"📁 File: {result.FileName}");
+
+                    if (!string.IsNullOrEmpty(result.Category))
+                        formatted.AppendLine($"🏷️  Category: {result.Category}");
+
+                    if (result.Skills.Any())
+                        formatted.AppendLine($"💼 Skills: {string.Join(", ", result.Skills)}");
+
+
+
+
+                    // Display scores with visual indicators
+                    if (result.RerankerScore.HasValue)
                     {
-                        formatted.AppendLine($"   ▸ {caption.Text}");
+                        string scoreBar = GetScoreBar(result.RerankerScore.Value);
+                        formatted.AppendLine($"\n🎯 Relevance: {scoreBar} ({result.RerankerScore.Value:F2})");
                     }
-                }
-
-                // Content preview
-                if (!string.IsNullOrEmpty(result.ContentPreview))
-                {
-                    formatted.AppendLine($"\n📝 Preview:");
-                    formatted.AppendLine($"   {TruncateText(result.ContentPreview, 200)}");
-                }
-
-                // Chunks with better formatting
-                if (result.Chunks.Any())
-                {
-                    formatted.AppendLine($"\n📚 Content Sections ({result.TotalChunks} total):");
-                    for (int i = 0; i < Math.Min(3, result.Chunks.Count); i++)
+                    else if (result.SearchScore.HasValue)
                     {
-                        formatted.AppendLine($"   {i + 1}. {TruncateText(result.ChunkPreviews[i], 150)}");
+                        string scoreBar = GetScoreBar(result.SearchScore.Value);
+                        formatted.AppendLine($"🎯 Score: {scoreBar} ({result.SearchScore.Value:F2})");
                     }
-                    if (result.TotalChunks > 3)
-                        formatted.AppendLine($"   ⋯ and {result.TotalChunks - 3} more sections");
-                }
 
-                // Highlights
-                if (result.Highlights.Any())
-                {
-                    formatted.AppendLine($"\n✨ Matched Terms:");
-                    foreach (var highlight in result.Highlights.Take(2))
+                    // Semantic captions with highlighting
+                    if (result.SemanticCaptions.Any())
                     {
-                        foreach (var value in highlight.Value.Take(2))
+                        formatted.AppendLine($"\n💡 Key Insights:");
+                        foreach (var caption in result.SemanticCaptions.Take(2))
                         {
-                            formatted.AppendLine($"   • {value}");
+                            formatted.AppendLine($"   ▸ {caption.Text}");
                         }
                     }
+
+                    // Content preview
+                    if (!string.IsNullOrEmpty(result.ContentPreview))
+                    {
+                        formatted.AppendLine($"\n📝 Preview:");
+                        formatted.AppendLine($"   {TruncateText(result.ContentPreview, 200)}");
+                    }
+
+                    // Chunks with better formatting
+                    if (result.Chunks.Any())
+                    {
+                        formatted.AppendLine($"\n📚 Content Sections ({result.TotalChunks} total):");
+                        for (int i = 0; i < Math.Min(3, result.Chunks.Count); i++)
+                        {
+                            formatted.AppendLine($"   {i + 1}. {TruncateText(result.ChunkPreviews[i], 150)}");
+                        }
+                        if (result.TotalChunks > 3)
+                            formatted.AppendLine($"   ⋯ and {result.TotalChunks - 3} more sections");
+                    }
+
+                    // Highlights
+                    if (result.Highlights.Any())
+                    {
+                        formatted.AppendLine($"\n✨ Matched Terms:");
+                        foreach (var highlight in result.Highlights.Take(2))
+                        {
+                            foreach (var value in highlight.Value.Take(2))
+                            {
+                                formatted.AppendLine($"   • {value}");
+                            }
+                        }
+                    }
+
+
+
+                    // fileName URL
+                    if (!string.IsNullOrEmpty(result.FileName))
+                        formatted.AppendLine($"\n🔗 Source: <a href=\"{result.FileName}\" target=\"_blank\">Source</a>");
+
+                    formatted.AppendLine("\n═══════════════════════════════════════════════════════\n");
                 }
-
-
-
-                // fileName URL
-                if (!string.IsNullOrEmpty(result.FileName))
-                    formatted.AppendLine($"\n🔗 Source: <a href=\"{result.FileName}\" target=\"_blank\">Source</a>");
-
-                formatted.AppendLine("\n═══════════════════════════════════════════════════════\n");
             }
 
             return formatted.ToString();
-        }
-
-        private string GetSentimentEmoji(string sentiment)
-        {
-            return sentiment?.ToLower() switch
-            {
-                "positive" => "😊",
-                "negative" => "😟",
-                "neutral" => "😐",
-                _ => "❓"
-            };
-        }
-
-        private string GetSentimentBar(double score)
-        {
-            int filled = (int)(score * 10);
-            int empty = 10 - filled;
-            return $"{RepeatString("█", filled)}{RepeatString("░", empty)}";
         }
 
         // Helper method to generate star rating based on score
@@ -489,15 +523,12 @@ namespace AIResumeScanner_Razden.Services
         }
 
         // Helper method to create visual score bar      
+        
         private string GetScoreBar(double score)
         {
-            // Clamp score to 0–3
+            // Clamp 0–3
             double clamped = Math.Min(Math.Max(score, 0), 3);
-
-            // Convert score (0–3) → percentage (0–100)
             double percentage = (clamped / 3.0) * 100;
-
-            // Convert percentage to 10-block bar
             int filled = (int)(percentage / 10);
             int empty = 10 - filled;
 
@@ -524,6 +555,52 @@ namespace AIResumeScanner_Razden.Services
             return string.Concat(Enumerable.Repeat(text, count));
         }
 
+        // Helper classes
+        private class SentimentJsonResponse
+        {
+            public string OverallSentiment { get; set; }
+
+            public ConfidenceScoresModel ConfidenceScores { get; set; }
+
+            public double PositiveScore => ConfidenceScores?.Positive ?? 0.0;
+            public double NeutralScore => ConfidenceScores?.Neutral ?? 0.0;
+            public double NegativeScore => ConfidenceScores?.Negative ?? 0.0;
+
+            public string MatchWithJobDescription { get; set; }
+
+            public bool IsTailored { get; set; }
+
+            public string Reasoning { get; set; }
+
+            public List<RequirementModel> Requirements { get; set; }
+
+        }
+
+        private class ConfidenceScoresModel
+        {
+            public double Positive { get; set; }
+            public double Negative { get; set; }
+            public double Neutral { get; set; }
+        }
+
+        private class RequirementModel
+        {
+            public string Requirement { get; set; }
+            public bool? IsMatched { get; set; }
+            public string Evidence { get; set; }
+        }
+
+        private class SentimentResult
+        {
+            public string Sentiment { get; set; }
+            public double PositiveScore { get; set; }
+            public double NeutralScore { get; set; }
+            public double NegativeScore { get; set; }
+            public string MatchWithJobDescription { get; set; }
+            public bool IsTailored { get; set; }
+            public string Reasoning { get; set; }
+            public List<RequirementModel> Requirements { get; set; }
+        }
 
     }
 }

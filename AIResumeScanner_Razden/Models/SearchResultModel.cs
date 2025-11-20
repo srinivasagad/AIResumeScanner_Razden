@@ -31,11 +31,17 @@ namespace AIResumeScanner_Razden.Models
 
         // Sentiment Analysis Properties
         public string Sentiment { get; set; }
-        public double PositiveScore { get; set; }
-        public double NeutralScore { get; set; }
-        public double NegativeScore { get; set; }
-        public string SentimentLevel => GetSentimentLevel();
+        public ConfidenceScores ConfidenceScores { get; set; }
+        //public double PositiveScore => ConfidenceScores?.Positive ?? 0.0;
+        //public double NeutralScore => ConfidenceScores?.Neutral ?? 0.0;
+        //public double NegativeScore => ConfidenceScores?.Negative ?? 0.0;
+        //public string SentimentLevel => GetSentimentLevel();
 
+        // Job Matching Properties
+        public string MatchWithJobDescription { get; set; }
+        public bool IsTailored { get; set; }
+        public string Reasoning { get; set; }
+        public List<Requirement> Requirements { get; set; } = new List<Requirement>();
 
         // Semantic Search Results
         public List<SemanticCaption> SemanticCaptions { get; set; } = new List<SemanticCaption>();
@@ -56,7 +62,6 @@ namespace AIResumeScanner_Razden.Models
         {
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
-
             return text.Length > maxLength
                 ? text.Substring(0, maxLength) + "..."
                 : text;
@@ -73,21 +78,18 @@ namespace AIResumeScanner_Razden.Models
             };
         }
 
-         private string GetSentimentLevel()
-        {
-            if (string.IsNullOrEmpty(Sentiment))
-                return string.Empty;
-            
-            return Sentiment.ToLower() switch
-            {
-                "positive" => PositiveScore >= 0.8 ? "😊 Very Positive" : "🙂 Positive",
-                "negative" => NegativeScore >= 0.8 ? "😢 Very Negative" : "😟 Negative",
-                "neutral" => "😐 Neutral",
-                _ => "❓ Unknown"
-            };
-        }
-
+        
     }
+
+    // Supporting Classes
+    public class ConfidenceScores
+    {
+        public double Positive { get; set; }
+        public double Negative { get; set; }
+        public double Neutral { get; set; }
+    }
+
+    
 
     public class SemanticCaption
     {
