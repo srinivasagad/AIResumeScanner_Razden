@@ -32,10 +32,7 @@ namespace AIResumeScanner_Razden.Models
         // Sentiment Analysis Properties
         public string Sentiment { get; set; }
         public ConfidenceScores ConfidenceScores { get; set; }
-        //public double PositiveScore => ConfidenceScores?.Positive ?? 0.0;
-        //public double NeutralScore => ConfidenceScores?.Neutral ?? 0.0;
-        //public double NegativeScore => ConfidenceScores?.Negative ?? 0.0;
-        //public string SentimentLevel => GetSentimentLevel();
+       
 
         // Job Matching Properties
         public string MatchWithJobDescription { get; set; }
