@@ -560,7 +560,7 @@ namespace AIResumeScanner_Razden.Services
         {
             public string OverallSentiment { get; set; }
 
-            public ConfidenceScoresModel ConfidenceScores { get; set; }
+            public ConfidenceScores ConfidenceScores { get; set; }
 
             public double PositiveScore => ConfidenceScores?.Positive ?? 0.0;
             public double NeutralScore => ConfidenceScores?.Neutral ?? 0.0;
@@ -576,12 +576,7 @@ namespace AIResumeScanner_Razden.Services
 
         }
 
-        private class ConfidenceScoresModel
-        {
-            public double Positive { get; set; }
-            public double Negative { get; set; }
-            public double Neutral { get; set; }
-        }
+       
 
         private class RequirementModel
         {
