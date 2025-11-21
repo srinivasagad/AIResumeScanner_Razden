@@ -80,6 +80,21 @@
     </div>
 }
 
+@if (showTokenPopup)
+{
+    <div class="popup-overlay" @onclick="CloseTokenPopup">
+        <div class="popup-content" @onclick:stopPropagation>
+            <div class="popup-header">
+                <h4>Token Limit Error</h4>
+                <button class="close-btn" @onclick="CloseTokenPopup">✖</button>
+            </div>
+            <div class="popup-body">
+                @popupMessage
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool showLoader = false;
     private List<Models.ChatMessage> chatHistory = new();
@@ -102,6 +117,22 @@
     private string sessionId = Guid.NewGuid().ToString();
     [Inject] IJSRuntime JS { get; set; } = default!;
     private DotNetObjectReference<ResumeSearch>? dotnetHelper;
+
+
+    private bool showTokenPopup = false;
+    private string popupMessage = "";
+
+    private void ShowTokenPopup(string message)
+    {
+        popupMessage = message;
+        showTokenPopup = true;
+    }
+
+    private void CloseTokenPopup()
+    {
+        showTokenPopup = false;
+        popupMessage = "";
+    }
 
     protected override void OnInitialized()
     {
@@ -230,7 +261,7 @@
         {
             showLoader = false;
             chatResponse = HttpUtility.HtmlEncode(ex.Message);
-
+            ShowTokenPopup(ex.Message);
             Console.WriteLine($"\nError: {ex.Message}");
             Console.WriteLine($"Stack: {ex.StackTrace}\n");
            
