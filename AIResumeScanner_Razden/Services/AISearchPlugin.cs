@@ -16,6 +16,7 @@ using OpenAI.Chat;
 using OpenAI;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using iTextSharp.text;
 
 namespace AIResumeScanner_Razden.Services
 {
@@ -78,18 +79,141 @@ namespace AIResumeScanner_Razden.Services
 
                 var response = await _searchClient.SearchAsync<Azure.Search.Documents.Models.SearchDocument>(query, searchOptions);
 
-                
 
-                
+                return FormatSearchResults(response);
+
+                /*
                 // Add sentiment analysis to results
                 var resultsWithSentimentWithGPT = await AddSentimentAnalysisWithGPT(response, query);
                 return FormatSearchResults(resultsWithSentimentWithGPT, response.Value.TotalCount ?? 0);
+                */
 
             }
             catch (Exception ex)
             {
                 return $"Search error: {ex.Message}";
             }
+        }
+
+        //SearchResults<Azure.Search.Documents.Models.SearchDocument> results
+        private string FormatSearchResults(SearchResults<Azure.Search.Documents.Models.SearchDocument> results)
+        {
+            var formattedResults = new StringBuilder();
+            formattedResults.AppendLine("Search Results (ordered by relevance):\n");
+
+            int rank = 1;
+            foreach (var result in results.GetResults())
+            {
+                // Calculate star rating based on Semantic search re-ranker score or search score
+                string starRating = GetStarRating(result.SemanticSearch.RerankerScore ?? result.Score ?? 0);
+
+                formattedResults.AppendLine($"📄 Result #{rank} {starRating}");
+                formattedResults.AppendLine("───────────────────────────────────────────────────────");
+
+                
+
+                // Get reranker score if available
+                double? rerankerScore = result.SemanticSearch.RerankerScore;
+                double? searchScore = result.Score;
+
+                formattedResults.AppendLine($"--- Result #{rank} ---");
+
+                
+
+                // Display scores with visual indicators
+                if (result.SemanticSearch.RerankerScore.HasValue)
+                {
+                    string scoreBar = GetScoreBar(result.SemanticSearch.RerankerScore.Value);
+                    formattedResults.AppendLine($"\n🎯 Relevance: {scoreBar} ({result.SemanticSearch.RerankerScore.Value:F2})");
+                }
+                else if (result.Score.HasValue)
+                {
+                    string scoreBar = GetScoreBar(result.Score.Value);
+                    formattedResults.AppendLine($"🎯 Score: {scoreBar} ({result.Score.Value:F2})");
+                }
+
+                // Extract and display profile information
+                var document = result.Document;
+
+                if (document.ContainsKey("Title"))
+                    formattedResults.AppendLine($" 📌 Title: {document["Title"]}");
+
+                if (document.ContainsKey("Content"))
+                    formattedResults.AppendLine($" \n📚 Content: {document["Content"]}");
+                
+
+                // Chunks with better formatting
+                if (document.ContainsKey("chunks"))
+                {
+                    formattedResults.AppendLine($"\n📚 Chunk Sections ({document["chunks"]} total):");
+                    var chunks = document["chunks"];
+                    List<string> chunkTexts = new();
+
+                    // If chunks is a JsonElement (from Azure Search)
+                    if (chunks is JsonElement jsonElement)
+                    {
+                        if (jsonElement.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var chunk in jsonElement.EnumerateArray())
+                            {
+                                if (chunk.ValueKind == JsonValueKind.String)
+                                    chunkTexts.Add(chunk.GetString());
+                                else if (chunk.ValueKind == JsonValueKind.Object && chunk.TryGetProperty("text", out var textElement))
+                                    chunkTexts.Add(textElement.GetString());
+                            }
+                        }
+                        else if (jsonElement.ValueKind == JsonValueKind.String)
+                        {
+                            chunkTexts.Add(jsonElement.GetString());
+                        }
+                    }
+                    // If chunks is an object array
+                    else if (chunks is object[] objArr)
+                    {
+                        foreach (var item in objArr)
+                        {
+                            if (item != null)
+                                chunkTexts.Add(item.ToString());
+                        }
+                    }
+                    // If chunks is a string array
+                    else if (chunks is string[] strArr)
+                    {
+                        chunkTexts.AddRange(strArr.Where(s => !string.IsNullOrEmpty(s)));
+                    }
+                    // Fallback: single string
+                    else if (chunks is string str)
+                    {
+                        chunkTexts.Add(str);
+                    }
+
+                    // Display the extracted chunk texts
+                    foreach (var text in chunkTexts)
+                    {
+                        formattedResults.AppendLine($"   ▸ {text}");
+                    }
+
+                }
+
+                // Add highlights if available
+                if (result.Highlights != null && result.Highlights.Any())
+                {
+                    formattedResults.AppendLine("Highlights:");
+                    foreach (var highlight in result.Highlights)
+                    {
+                        formattedResults.AppendLine($" 💡 {highlight.Key}: {string.Join(", ", highlight.Value)}");
+                    }
+                }
+
+                // fileName URL
+                if (document.ContainsKey("fileName"))
+                    formattedResults.AppendLine($"\n🔗 Source: <a href=\"{document["fileName"]}\" target=\"_blank\">Source</a>");
+
+                formattedResults.AppendLine("\n═══════════════════════════════════════════════════════\n");
+                rank++;
+            }
+
+            return formattedResults.ToString();
         }
 
         private async Task<List<SearchResultModel>> AddSentimentAnalysisWithGPT(SearchResults<Azure.Search.Documents.Models.SearchDocument> results, string userQuery)
