@@ -6,7 +6,7 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "AzureOpenAI__OpenAIEndPoint": "https://resumeembeddingendpoint.openai.azure.com/",
     "AzureOpenAI__OpenAIKey": "BxUQYM8ND9UR2q3WqFrk2YlyHR4NHCG2ORy6xpublVSY4WIl3TwYJQQJ99BJACYeBjFXJ3w3AAABACOGeGiz",
-    "AzureOpenAI__DeploymentName": "gpt-4.1",
+    "AzureOpenAI__DeploymentName": "gpt-5-nano",
     "AzureOpenAI__TokenCount": "16000",
 
     "ResumePrompt": "You are an AI that extracts structured information from resumes. Parse the following resume and return only the required fields in structured JSON format: Required fields:\n• full_name\n• email\n• phone\n• location\n• professional_summary\n• skills (list)\n• total_experience_years\n• work_experience (list of objects with: job_title, company_name, start_date, end_date, location, description)\n• education (list of objects with: degree, field_of_study, institution_name, start_date, end_date)\n• certifications (list of objects with: name, issuer, date)\n• projects (list of objects with: title, description, technologies)\n• languages (list)\n\nImportant:\n- All fields above must be present in the output JSON, even if their value is null or an empty list.\n- Return JSON only. Do not include explanations or additional text.",

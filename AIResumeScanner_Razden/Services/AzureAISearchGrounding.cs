@@ -29,7 +29,7 @@ namespace AIResumeScanner_Razden.Services
         string openAIEndpoint,
         string openAIApiKey,
         string embeddingDeployment = "text-embedding-ada-002",
-        string chatDeployment = "gpt-4.1")
+        string chatDeployment = "gpt-5-nano")
         {
             _searchClient = new SearchClient(
                 new Uri(searchEndpoint),
@@ -212,7 +212,7 @@ namespace AIResumeScanner_Razden.Services
                 // Initialize the AzureOpenAIClient
                 AzureOpenAIClient azureClient = new(new Uri("https://resumeembeddingendpoint.openai.azure.com/"), credential);
                 // Initialize the ChatClient with the specified deployment name
-                ChatClient chatClient = azureClient.GetChatClient("gpt-4.1");
+                ChatClient chatClient = azureClient.GetChatClient("gpt-5-nano");
                 // Create the chat completion request
                 ChatCompletion completion = await chatClient.CompleteChatAsync(messages, options);
                 string responseJson = "";
