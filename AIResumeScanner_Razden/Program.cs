@@ -22,6 +22,18 @@ namespace AIResumeScanner_Razden
 
             builder.Services.AddRadzenComponents();
 
+            // In Program.cs
+            builder.Services.AddSingleton<TokenUsageService>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+
+                return new TokenUsageService
+                {
+                    TokensPerMinuteLimit = config.GetValue<int>("AzureOpenAIModelDetails:TokensPerMinuteLimit", 10000),
+                    MonthlyTokenLimit = config.GetValue<int>("AzureOpenAIModelDetails:MonthlyTokenLimit", 1000000)
+                };
+            });
+
             builder.Services.AddSingleton<ProfileValidationService>();
             // Register Azure Text Analytics Service
             builder.Services.AddSingleton<ResumeValidationService>(sp =>

@@ -1,0 +1,517 @@
+﻿@page "/home2"
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject SentimentService MySentimentService
+@inject TokenUsageService TokenUsageService
+@using System.Web
+@using iTextSharp.text;
+@using iTextSharp.text.pdf;
+@using Microsoft.Extensions.Azure;
+@using System.Reflection.Metadata;
+@using System.Text;
+@using AIResumeScanner_Razden.Services;
+@using Document = iTextSharp.text.Document;
+
+<PageTitle>AI Resume Scanner</PageTitle>
+
+<OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Main Content Area -->
+        <div class="col-lg-9 col-md-8">
+            <h2 class="mb-4">🔍 AI Resume Scanner</h2>
+
+            <RadzenTemplateForm Data="@jobModel" TItem="JobModel" Submit="@HandleSubmit">
+                <div class="form-grid" style="display: grid; gap: 20px; grid-template-columns: 1fr; max-width: 100%;">
+
+                    <RadzenLabel Text="Provide Job Description" Component="JobDescription" />
+                    <RadzenTextArea @bind-Value="jobModel.JobDescription"
+                                    Name="JobDescription"
+                                    Rows="5"
+                                    Style="width:100%"
+                                    Placeholder="Enter the job description here..." />
+
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <RadzenButton ButtonType="ButtonType.Submit"
+                                      Text="Submit"
+                                      Icon="search"
+                                      Style="width: 120px;"
+                                      Disabled="@(isSubmitting || !HasEnoughTokens())" />
+
+                        <RadzenButton ButtonType="ButtonType.Button"
+                                      Text="Clear"
+                                      Icon="clear"
+                                      Style="width: 120px;"
+                                      Click="ClearTextArea" />
+
+                        <RadzenButton ButtonType="ButtonType.Button"
+                                      Text="Export to CSV"
+                                      Icon="download"
+                                      Style="width: 140px;"
+                                      Click="ExportToCsv"
+                                      Visible="showExport" />
+
+                        <RadzenButton ButtonType="ButtonType.Button"
+                                      Text="Export to PDF"
+                                      Icon="picture_as_pdf"
+                                      Style="width: 140px;"
+                                      Click="ExportToPdf"
+                                      Visible="showExport" />
+                    </div>
+
+                    @if (!HasEnoughTokens())
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <strong>⚠️ Rate Limit Reached</strong>
+                            <p class="mb-0">
+                                You have only @TokenUsageService.GetRemainingTokensPerMinute() tokens remaining.
+                                Please wait before submitting. (Resets in ~@GetSecondsUntilReset() seconds)
+                            </p>
+                        </div>
+                    }
+                </div>
+            </RadzenTemplateForm>
+
+            <br />
+
+            @if (!string.IsNullOrEmpty(chatResponse))
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">💬 Response</h5>
+                    </div>
+                    <div class="card-body">
+                        <div style="white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                            @((MarkupString)chatResponse)
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (isSubmitting)
+            {
+                <div class="card mb-4">
+                    <div class="card-body text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3">Processing your request...</p>
+                        <small class="text-muted">This may take a few moments</small>
+                    </div>
+                </div>
+            }
+
+            @if (currentAgent != null && !string.IsNullOrEmpty(chatResponse))
+            {
+                var stats = currentAgent.GetSessionStats();
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">📊 Session Statistics</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <small class="text-muted">Total Requests</small>
+                                <div class="h5">@stats.RequestCount</div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Total Tokens</small>
+                                <div class="h5">@stats.TotalTokens.ToString("N0")</div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Avg. per Request</small>
+                                <div class="h5">@stats.AverageTokensPerRequest.ToString("F0")</div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Success Rate</small>
+                                <div class="h5">@GetSuccessRate(stats)%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Sidebar with Token Widget -->
+        <div class="col-lg-3 col-md-4">
+            <!-- Token Usage Widget -->
+            <TokenUsageWidget />
+
+            <!-- Quick Stats Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">📊 Session Info</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">Session ID:</small>
+                        <div class="text-truncate" title="@sessionId">
+                            <code style="font-size: 0.75rem;">@sessionId.Substring(0, 8)...</code>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Exports Available:</small>
+                        <div>
+                            @if (showExport)
+                            {
+                                <span class="badge bg-success">Ready ✓</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Submit Query First</span>
+                            }
+                        </div>
+                    </div>
+                    @if (lastRequestTokens > 0)
+                    {
+                        <div class="mb-0 mt-3">
+                            <small class="text-muted">Last Request:</small>
+                            <div class="badge bg-primary">@lastRequestTokens tokens</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">💡 Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled small mb-0">
+                        <li class="mb-2">
+                            <strong>✓</strong> Be specific in job descriptions
+                        </li>
+                        <li class="mb-2">
+                            <strong>✓</strong> Include required skills and qualifications
+                        </li>
+                        <li class="mb-2">
+                            <strong>✓</strong> Monitor token usage to avoid rate limits
+                        </li>
+                        <li class="mb-0">
+                            <strong>✓</strong> Export results for offline review
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- View Full Dashboard Link -->
+            <div class="mt-3 text-center">
+                <a href="/token-usage" class="btn btn-outline-primary btn-sm w-100">
+                    📈 View Full Token Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .alert {
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+
+    .card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .card-header {
+        border-radius: 8px 8px 0 0 !important;
+    }
+
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+
+@code {
+    private JobModel jobModel = new();
+    private List<Models.Result> resumeresults = new();
+    private bool showLoader = false;
+    private bool showExport = false;
+    private bool isSubmitting = false;
+    private string chatResponse = string.Empty;
+    private SearchAgent2 currentAgent = null;
+    private int lastRequestTokens = 0;
+
+    [Inject]
+    public IConfiguration _configuration { get; set; }
+
+    // Azure OpenAI Configuration
+    private string azureOpenAiEndpoint { get; set; } = string.Empty;
+    private string azureOpenAiApiKey { get; set; } = string.Empty;
+    private string chatDeploymentName { get; set; } = string.Empty;
+    private string embeddingDeploymentName { get; set; } = string.Empty;
+
+    // Azure AI Search Configuration
+    private string searchEndpoint { get; set; } = string.Empty;
+    private string searchIndexName { get; set; } = string.Empty;
+    private string searchApiKey { get; set; } = string.Empty;
+    private string textAnalyticsEndpoint { get; set; } = string.Empty;
+    private string textAnalyticsApiKey { get; set; } = string.Empty;
+
+    private string sessionId = Guid.NewGuid().ToString();
+
+    protected override async Task OnInitializedAsync()
+    {
+        showLoader = false;
+        azureOpenAiEndpoint = _configuration.GetSection("OpenAISettings")["AzureOpenAiEndpoint"];
+        azureOpenAiApiKey = _configuration.GetSection("OpenAISettings")["AzureOpenAiApiKey"];
+        chatDeploymentName = _configuration.GetSection("OpenAISettings")["ChatDeploymentName"];
+        embeddingDeploymentName = _configuration.GetSection("OpenAISettings")["EmbeddingDeploymentName"];
+        searchEndpoint = _configuration.GetSection("OpenAISettings")["SearchEndpoint"];
+        searchIndexName = _configuration.GetSection("OpenAISettings")["SearchIndexName"];
+        searchApiKey = _configuration.GetSection("OpenAISettings")["SearchApiKey"];
+        textAnalyticsEndpoint = _configuration.GetSection("AzureTextAnalytics")["Endpoint"];
+        textAnalyticsApiKey = _configuration.GetSection("AzureTextAnalytics")["ApiKey"];
+    }
+
+    private bool HasEnoughTokens()
+    {
+        // Check if we have at least 500 tokens available
+        return TokenUsageService.GetRemainingTokensPerMinute() >= 500;
+    }
+
+    private int GetSecondsUntilReset()
+    {
+        // Calculate seconds until the next minute
+        return 60 - DateTime.UtcNow.Second;
+    }
+
+    private int GetSuccessRate(SearchAgent2.TokenSessionStats stats)
+    {
+        if (stats.RequestCount == 0) return 0;
+        return (int)((stats.SuccessfulRequests * 100.0) / stats.RequestCount);
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (!HasEnoughTokens())
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Rate Limit",
+                    Detail = "Insufficient tokens available. Please wait before submitting.",
+                    Duration = 4000
+                });
+            return;
+        }
+
+        isSubmitting = true;
+        showExport = false;
+        chatResponse = string.Empty;
+        lastRequestTokens = 0;
+
+        try
+        {
+            var input = jobModel.JobDescription;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Info,
+                        Summary = "Empty Input",
+                        Detail = "Please provide a job description.",
+                        Duration = 3000
+                    });
+                return;
+            }
+
+            // Record tokens before request
+            var tokensBefore = TokenUsageService.GetTokensUsedLastMinute();
+
+            // Create agent with TokenUsageService
+            currentAgent = new SearchAgent2(
+                azureOpenAiEndpoint,
+                azureOpenAiApiKey,
+                chatDeploymentName,
+                embeddingDeploymentName,
+                searchEndpoint,
+                searchIndexName,
+                searchApiKey,
+                sessionId,
+                textAnalyticsEndpoint,
+                textAnalyticsApiKey,
+                TokenUsageService // Pass the token service
+            );
+
+            // Track the start time for performance monitoring
+            var startTime = DateTime.UtcNow;
+
+            string response = await currentAgent.ChatAsync(input);
+
+            chatResponse = response; // Don't encode since it contains HTML
+            showExport = true;
+
+            // Calculate actual time taken
+            var duration = DateTime.UtcNow - startTime;
+
+            // Calculate tokens used for this request
+            var tokensAfter = TokenUsageService.GetTokensUsedLastMinute();
+            lastRequestTokens = tokensAfter - tokensBefore;
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Search Complete",
+                    Detail = $"Query processed successfully in {duration.TotalSeconds:F1}s using {lastRequestTokens} tokens",
+                    Duration = 4000
+                });
+        }
+        catch (Exception ex)
+        {
+            chatResponse = $"❌ Error: {ex.Message}";
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = ex.Message,
+                    Duration = 5000
+                });
+
+            Console.WriteLine($"\nError: {ex.Message}");
+            Console.WriteLine($"Stack: {ex.StackTrace}\n");
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    void ExportToCsv()
+    {
+        try
+        {
+            if (currentAgent == null)
+            {
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Warning,
+                        Summary = "No Data",
+                        Detail = "Please submit a query first.",
+                        Duration = 3000
+                    });
+                return;
+            }
+
+            var history = currentAgent.GetConversationHistory();
+            string csvPath = $"conversation_history_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            var sb = new StringBuilder();
+            sb.AppendLine("Timestamp,Role,Content"); // CSV header
+
+            foreach (var msg in history)
+            {
+                // Escape double quotes and commas in content
+                string safeContent = msg.Content.Replace("\"", "\"\"");
+                sb.AppendLine($"\"{msg.Timestamp:yyyy-MM-dd HH:mm:ss}\",\"{msg.Role}\",\"{safeContent}\"");
+            }
+
+            File.WriteAllText(csvPath, sb.ToString(), Encoding.UTF8);
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Export Successful",
+                    Detail = $"CSV saved to {csvPath}",
+                    Duration = 4000
+                });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Export Failed",
+                    Detail = ex.Message,
+                    Duration = 4000
+                });
+        }
+    }
+
+    void ExportToPdf()
+    {
+        try
+        {
+            if (currentAgent == null)
+            {
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Warning,
+                        Summary = "No Data",
+                        Detail = "Please submit a query first.",
+                        Duration = 3000
+                    });
+                return;
+            }
+
+            var history = currentAgent.GetConversationHistory();
+            string pdfPath = $"conversation_history_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+
+            // Create a new PDF document
+            Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+            PdfWriter.GetInstance(document, new FileStream(pdfPath, FileMode.Create));
+            document.Open();
+
+            // Define fonts
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+            var roleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.BLUE);
+            var contentFont = FontFactory.GetFont(FontFactory.HELVETICA, 11);
+
+            // Add title
+            document.Add(new Paragraph("Conversation History", titleFont));
+            document.Add(new Paragraph($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n"));
+
+            // Add session info
+            var stats = currentAgent.GetSessionStats();
+            document.Add(new Paragraph($"Session ID: {sessionId}", contentFont));
+            document.Add(new Paragraph($"Total Tokens Used: {stats.TotalTokens}\n\n", contentFont));
+
+            // Add conversation entries
+            foreach (var msg in history)
+            {
+                var header = new Paragraph($"[{msg.Timestamp:yyyy-MM-dd HH:mm:ss}] {msg.Role}:", roleFont);
+                document.Add(header);
+
+                var content = new Paragraph(msg.Content + "\n\n", contentFont);
+                document.Add(content);
+            }
+
+            document.Close();
+
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Export Successful",
+                    Detail = $"PDF saved to {pdfPath}",
+                    Duration = 4000
+                });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Export Failed",
+                    Detail = ex.Message,
+                    Duration = 4000
+                });
+        }
+    }
+
+    void ClearTextArea()
+    {
+        jobModel.JobDescription = string.Empty;
+        chatResponse = string.Empty;
+        showExport = false;
+        lastRequestTokens = 0;
+        StateHasChanged();
+    }
+}
