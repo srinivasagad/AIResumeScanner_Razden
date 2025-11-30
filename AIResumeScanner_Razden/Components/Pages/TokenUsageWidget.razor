@@ -1,0 +1,205 @@
+﻿@page "/token-usage" 
+@using AIResumeScanner_Razden.Services
+@inject TokenUsageService TokenUsageService
+@implements IDisposable
+
+<div class="token-usage-widget @(IsCompact ? "compact" : "")">
+    <div class="widget-header">
+        <span class="widget-title">⚡ Token Usage</span>
+        @if (!IsCompact)
+        {
+            <a href="/token-usage" class="btn btn-sm btn-link">View Details</a>
+        }
+    </div>
+
+    <div class="widget-body">
+        <div class="token-meter">
+            <div class="token-info">
+                <span class="token-label">Last Minute:</span>
+                <span class="token-value @GetStatusClass(tokensLastMinute, TokenUsageService.TokensPerMinuteLimit)">
+                    @tokensLastMinute / @TokenUsageService.TokensPerMinuteLimit
+                </span>
+            </div>
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar @GetProgressBarClass(tokensLastMinute, TokenUsageService.TokensPerMinuteLimit)"
+                     style="width: @GetPercentage(tokensLastMinute, TokenUsageService.TokensPerMinuteLimit)%">
+                </div>
+            </div>
+        </div>
+
+        @if (!IsCompact)
+        {
+            <div class="token-stats mt-2">
+                <div class="stat-item">
+                    <small class="text-muted">Today:</small>
+                    <strong>@tokensToday.ToString("N0")</strong>
+                </div>
+                <div class="stat-item">
+                    <small class="text-muted">Month:</small>
+                    <strong>@tokensThisMonth.ToString("N0")</strong>
+                </div>
+                <div class="stat-item">
+                    <small class="text-muted">Cost:</small>
+                    <strong>$@estimatedCost.ToString("F2")</strong>
+                </div>
+            </div>
+        }
+
+        @if (tokensLastMinute > TokenUsageService.TokensPerMinuteLimit * 0.8)
+        {
+            <div class="alert alert-warning alert-sm mt-2 mb-0" role="alert">
+                <small>⚠️ Approaching rate limit!</small>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .token-usage-widget {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+        .token-usage-widget.compact {
+            padding: 10px;
+        }
+
+    .widget-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .widget-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #333;
+    }
+
+    .token-meter {
+        margin-bottom: 10px;
+    }
+
+    .token-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+
+    .token-value {
+        font-weight: 600;
+    }
+
+        .token-value.status-good {
+            color: #28a745;
+        }
+
+        .token-value.status-warning {
+            color: #ffc107;
+        }
+
+        .token-value.status-danger {
+            color: #dc3545;
+        }
+
+    .progress-bar.bg-good {
+        background-color: #28a745 !important;
+    }
+
+    .progress-bar.bg-warning {
+        background-color: #ffc107 !important;
+    }
+
+    .progress-bar.bg-danger {
+        background-color: #dc3545 !important;
+    }
+
+    .token-stats {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .alert-sm {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public bool IsCompact { get; set; } = false;
+
+    private int tokensLastMinute;
+    private int tokensToday;
+    private int tokensThisMonth;
+    private double estimatedCost;
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        TokenUsageService.OnUsageUpdated += RefreshData;
+        RefreshData();
+
+        // Auto-refresh every 2 seconds
+        _timer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                RefreshData();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private void RefreshData()
+    {
+        tokensLastMinute = TokenUsageService.GetTokensUsedLastMinute();
+        tokensToday = TokenUsageService.GetTokensUsedToday();
+        tokensThisMonth = TokenUsageService.GetTokensUsedThisMonth();
+        estimatedCost = TokenUsageService.GetAverageCostEstimate();
+    }
+
+    private double GetPercentage(int current, int total)
+    {
+        if (total == 0) return 0;
+        return Math.Min(100, (current * 100.0 / total));
+    }
+
+    private string GetStatusClass(int current, int total)
+    {
+        var percentage = GetPercentage(current, total);
+        if (percentage < 60) return "status-good";
+        if (percentage < 80) return "status-warning";
+        return "status-danger";
+    }
+
+    private string GetProgressBarClass(int current, int total)
+    {
+        var percentage = GetPercentage(current, total);
+        if (percentage < 60) return "bg-good";
+        if (percentage < 80) return "bg-warning";
+        return "bg-danger";
+    }
+
+    public void Dispose()
+    {
+        TokenUsageService.OnUsageUpdated -= RefreshData;
+        _timer?.Dispose();
+    }
+}

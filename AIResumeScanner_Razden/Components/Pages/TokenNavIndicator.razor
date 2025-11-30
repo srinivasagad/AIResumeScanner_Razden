@@ -1,0 +1,124 @@
+﻿@page "/TokenNavIndicator"
+@* Use this in your navigation bar or header *@
+@using AIResumeScanner_Razden.Services
+@inject TokenUsageService TokenUsageService
+@implements IDisposable
+
+<div class="token-nav-indicator">
+    <a href="/token-usage" class="token-link" title="View token usage details">
+        <span class="token-icon">⚡</span>
+        <span class="token-count @GetStatusClass()">
+            @tokensLastMinute
+        </span>
+        <span class="token-limit">/ @TokenUsageService.TokensPerMinuteLimit</span>
+    </a>
+</div>
+
+<style>
+    .token-nav-indicator {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        margin: 0 10px;
+    }
+
+    .token-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s;
+    }
+
+        .token-link:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+
+    .token-icon {
+        font-size: 16px;
+    }
+
+    .token-count {
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+        .token-count.status-good {
+            color: #28a745;
+        }
+
+        .token-count.status-warning {
+            color: #ffc107;
+        }
+
+        .token-count.status-danger {
+            color: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+    .token-limit {
+        font-size: 12px;
+        opacity: 0.7;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .token-limit {
+            display: none;
+        }
+    }
+</style>
+
+@code {
+    private int tokensLastMinute;
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        TokenUsageService.OnUsageUpdated += RefreshData;
+        RefreshData();
+
+        // Auto-refresh every 2 seconds
+        _timer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                RefreshData();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private void RefreshData()
+    {
+        tokensLastMinute = TokenUsageService.GetTokensUsedLastMinute();
+    }
+
+    private string GetStatusClass()
+    {
+        var percentage = (tokensLastMinute * 100.0) / TokenUsageService.TokensPerMinuteLimit;
+        if (percentage < 60) return "status-good";
+        if (percentage < 80) return "status-warning";
+        return "status-danger";
+    }
+
+    public void Dispose()
+    {
+        TokenUsageService.OnUsageUpdated -= RefreshData;
+        _timer?.Dispose();
+    }
+}
