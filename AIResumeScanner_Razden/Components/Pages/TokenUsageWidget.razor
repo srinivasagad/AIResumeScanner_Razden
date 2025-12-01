@@ -1,4 +1,5 @@
-﻿@page "/token-usage" 
+﻿ 
+
 @using AIResumeScanner_Razden.Services
 @inject TokenUsageService TokenUsageService
 @implements IDisposable
@@ -8,11 +9,12 @@
         <span class="widget-title">⚡ Token Usage</span>
         @if (!IsCompact)
         {
-            <a href="/token-usage" class="btn btn-sm btn-link">View Details</a>
+            <a href="/token-history" class="btn btn-sm btn-link">View Full History</a>
         }
     </div>
 
     <div class="widget-body">
+        <!-- Current Usage Meter -->
         <div class="token-meter">
             <div class="token-info">
                 <span class="token-label">Last Minute:</span>
@@ -29,6 +31,7 @@
 
         @if (!IsCompact)
         {
+            <!-- Summary Stats -->
             <div class="token-stats mt-2">
                 <div class="stat-item">
                     <small class="text-muted">Today:</small>
@@ -43,6 +46,51 @@
                     <strong>$@estimatedCost.ToString("F2")</strong>
                 </div>
             </div>
+
+            <!-- Recent Requests -->
+            <div class="recent-requests mt-3">
+                <h6 class="mb-2">📝 Recent Requests</h6>
+                <div class="request-list">
+                    @if (recentRequests.Any())
+                    {
+                        @foreach (var request in recentRequests.Take(5))
+                        {
+                            <div class="request-item @(request.Success ? "" : "failed")"
+                                 @onclick="() => ShowRequestDetail(request)"
+                                 style="cursor: pointer;">
+                                <div class="request-header">
+                                    <span class="request-time">
+                                        @request.Timestamp.ToLocalTime().ToString("HH:mm:ss")
+                                    </span>
+                                    <span class="request-tokens">
+                                        @request.TotalTokens tokens
+                                    </span>
+                                </div>
+                                <div class="request-details">
+                                    <small class="text-muted">
+                                        @request.Operation
+                                    </small>
+                                    @if (!request.Success)
+                                    {
+                                        <span class="badge bg-danger ms-2">Failed</span>
+                                    }
+                                </div>
+                                <div class="request-breakdown">
+                                    <small class="text-muted">
+                                        ↑@request.PromptTokens ↓@request.CompletionTokens
+                                        • @request.DurationSeconds.ToString("F1")s
+                                        • $@request.EstimatedCost.ToString("F4")
+                                    </small>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">No recent requests</p>
+                    }
+                </div>
+            </div>
         }
 
         @if (tokensLastMinute > TokenUsageService.TokensPerMinuteLimit * 0.8)
@@ -53,6 +101,14 @@
         }
     </div>
 </div>
+
+<!-- Request Detail Modal -->
+@if (selectedRequest != null)
+{
+    <TokenDetailModal IsVisible="showDetailModal"
+                      Record="selectedRequest"
+                      OnClose="CloseDetailModal" />
+}
 
 <style>
     .token-usage-widget {
@@ -135,6 +191,69 @@
         gap: 2px;
     }
 
+    .recent-requests {
+        border-top: 1px solid #e0e0e0;
+        padding-top: 10px;
+    }
+
+        .recent-requests h6 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+
+    .request-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .request-item {
+        padding: 8px;
+        margin-bottom: 8px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 3px solid #28a745;
+        transition: all 0.2s;
+    }
+
+        .request-item:hover {
+            background: #e9ecef;
+            transform: translateX(2px);
+        }
+
+        .request-item.failed {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+    .request-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+
+    .request-time {
+        font-size: 11px;
+        font-weight: 600;
+        color: #666;
+    }
+
+    .request-tokens {
+        font-size: 11px;
+        font-weight: 600;
+        color: #007bff;
+    }
+
+    .request-details {
+        font-size: 11px;
+        margin-bottom: 2px;
+    }
+
+    .request-breakdown {
+        font-size: 10px;
+    }
+
     .alert-sm {
         padding: 5px 10px;
         font-size: 12px;
@@ -149,7 +268,11 @@
     private int tokensToday;
     private int tokensThisMonth;
     private double estimatedCost;
+    private List<TokenUsageService.TokenUsageRecord> recentRequests = new();
     private System.Threading.Timer? _timer;
+
+    private bool showDetailModal = false;
+    private TokenUsageService.TokenUsageRecord selectedRequest = null;
 
     protected override void OnInitialized()
     {
@@ -173,6 +296,7 @@
         tokensToday = TokenUsageService.GetTokensUsedToday();
         tokensThisMonth = TokenUsageService.GetTokensUsedThisMonth();
         estimatedCost = TokenUsageService.GetAverageCostEstimate();
+        recentRequests = TokenUsageService.GetRecentUsage(10);
     }
 
     private double GetPercentage(int current, int total)
@@ -195,6 +319,17 @@
         if (percentage < 60) return "bg-good";
         if (percentage < 80) return "bg-warning";
         return "bg-danger";
+    }
+
+    private void ShowRequestDetail(TokenUsageService.TokenUsageRecord request)
+    {
+        selectedRequest = request;
+        showDetailModal = true;
+    }
+
+    private void CloseDetailModal()
+    {
+        showDetailModal = false;
     }
 
     public void Dispose()

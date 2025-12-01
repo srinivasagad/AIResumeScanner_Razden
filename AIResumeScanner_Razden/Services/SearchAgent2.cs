@@ -271,7 +271,10 @@ Remember: Your goal is to provide accurate, well-formatted, visually engaging re
                     promptTokens: actualPromptTokens,
                     completionTokens: actualCompletionTokens,
                     model: _chatDeploymentName,
-                    success: true
+                    success: true,
+                    sessionId: _sessionId,
+                    userQuery: userMessage,
+                    durationSeconds: duration.TotalSeconds
                 );
 
                 Console.WriteLine($"[Token Usage] Prompt: {actualPromptTokens}, Completion: {actualCompletionTokens}, Total: {actualPromptTokens + actualCompletionTokens}, Duration: {duration.TotalSeconds:F2}s");
