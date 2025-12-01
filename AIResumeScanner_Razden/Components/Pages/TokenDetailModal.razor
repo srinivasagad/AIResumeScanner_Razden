@@ -1,0 +1,178 @@
+﻿
+@using AIResumeScanner_Razden.Services
+
+<div class="modal fade @(IsVisible ? "show d-block" : "")" tabindex="-1" style="@(IsVisible ? "background-color: rgba(0,0,0,0.5);" : "")">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">🔍 Token Usage Details</h5>
+                <button type="button" class="btn-close btn-close-white" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (Record != null)
+                {
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Request ID:</strong>
+                            <div><code>@Record.Id</code></div>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Session ID:</strong>
+                            <div><code>@Record.SessionId</code></div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Timestamp:</strong>
+                            <div>@Record.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Duration:</strong>
+                            <div>@Record.DurationSeconds.ToString("F2") seconds</div>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Status:</strong>
+                            <div>
+                                @if (Record.Success)
+                                {
+                                    <span class="badge bg-success">✓ Success</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">✗ Failed</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h6 class="mb-3">📊 Token Breakdown</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">Prompt Tokens</h6>
+                                    <h3 class="text-info">@Record.PromptTokens</h3>
+                                    <small>Input tokens</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">Completion Tokens</h6>
+                                    <h3 class="text-success">@Record.CompletionTokens</h3>
+                                    <small>Output tokens</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">Total Tokens</h6>
+                                    <h3 class="text-primary">@Record.TotalTokens</h3>
+                                    <small>Combined</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Model:</strong>
+                            <div><span class="badge bg-secondary">@Record.Model</span></div>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Operation:</strong>
+                            <div><span class="badge bg-info">@Record.Operation</span></div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>Estimated Cost:</strong>
+                            <div class="h4 text-success">$@Record.EstimatedCost.ToString("F4")</div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h6 class="mb-3">💬 User Query</h6>
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <pre style="white-space: pre-wrap; font-size: 0.9rem; margin: 0;">@(Record.UserQuery ?? "N/A")</pre>
+                        </div>
+                    </div>
+
+                    @if (!Record.Success && !string.IsNullOrEmpty(Record.ErrorMessage))
+                    {
+                        <hr />
+                        <h6 class="mb-3 text-danger">⚠️ Error Message</h6>
+                        <div class="alert alert-danger">
+                            <pre style="white-space: pre-wrap; margin: 0;">@Record.ErrorMessage</pre>
+                        </div>
+                    }
+
+                    <hr />
+
+                    <h6 class="mb-3">📈 Token Distribution</h6>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Prompt (@GetPercentage(Record.PromptTokens, Record.TotalTokens)%)</span>
+                            <span>@Record.PromptTokens tokens</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-info" style="width: @GetPercentage(Record.PromptTokens, Record.TotalTokens)%">
+                                @Record.PromptTokens
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Completion (@GetPercentage(Record.CompletionTokens, Record.TotalTokens)%)</span>
+                            <span>@Record.CompletionTokens tokens</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success" style="width: @GetPercentage(Record.CompletionTokens, Record.TotalTokens)%">
+                                @Record.CompletionTokens
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No record selected</p>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Close">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public TokenUsageService.TokenUsageRecord Record { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task Close()
+    {
+        IsVisible = false;
+        await OnClose.InvokeAsync();
+    }
+
+    private int GetPercentage(int value, int total)
+    {
+        if (total == 0) return 0;
+        return (int)((value * 100.0) / total);
+    }
+}

@@ -1,0 +1,587 @@
+﻿@page "/token-history"
+@using AIResumeScanner_Razden.Services
+@using Microsoft.JSInterop
+@inject TokenUsageService TokenUsageService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<PageTitle>Token Usage History</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>📊 Token Usage History</h2>
+            <p class="text-muted mb-0">Track and analyze your OpenAI API token consumption</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-success" @onclick="ExportToCsv">
+                <i class="bi bi-download"></i> Export CSV
+            </button>
+            <button class="btn btn-warning" @onclick="ShowClearOldConfirm">
+                <i class="bi bi-trash"></i> Clear Old (30+ days)
+            </button>
+            <button class="btn btn-danger" @onclick="ShowClearAllConfirm">
+                <i class="bi bi-x-circle"></i> Clear All
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stats-card bg-gradient-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-2">Total Requests</h6>
+                            <h2 class="mb-0">@stats.TotalRequests</h2>
+                            <small>
+                                <span class="badge bg-success">@stats.SuccessfulRequests Success</span>
+                                @if (stats.FailedRequests > 0)
+                                {
+                                    <span class="badge bg-danger ms-1">@stats.FailedRequests Failed</span>
+                                }
+                            </small>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="bi bi-bar-chart-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stats-card bg-gradient-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-2">Total Tokens</h6>
+                            <h2 class="mb-0">@stats.TotalTokens.ToString("N0")</h2>
+                            <small>Avg: @stats.AverageTokensPerRequest.ToString("F0") per request</small>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="bi bi-coin"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stats-card bg-gradient-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-2">Total Cost</h6>
+                            <h2 class="mb-0">$@stats.TotalCost.ToString("F2")</h2>
+                            <small>Estimated spend</small>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stats-card bg-gradient-warning text-dark h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-2">History Size</h6>
+                            <h2 class="mb-0">@historyCount</h2>
+                            <small>Records stored</small>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="bi bi-database"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-title">⏱️ Average Duration</h6>
+                    <h3>@stats.AverageDuration.ToString("F2")s</h3>
+                    <small class="text-muted">Per successful request</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-title">📅 Date Range</h6>
+                    @if (stats.FirstRequestDate != DateTime.MinValue)
+                    {
+                        <small class="text-muted">
+                            From: @stats.FirstRequestDate.ToLocalTime().ToString("MM/dd/yyyy")<br />
+                            To: @stats.LastRequestDate.ToLocalTime().ToString("MM/dd/yyyy")
+                        </small>
+                    }
+                    else
+                    {
+                        <small class="text-muted">No data</small>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-title">📊 Success Rate</h6>
+                    <h3>@GetSuccessRate()%</h3>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: @GetSuccessRate()%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-funnel"></i> Filters</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Date Range</label>
+                    <select class="form-select" @bind="selectedDateRange" @bind:after="ApplyFilters">
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="week">Last 7 Days</option>
+                        <option value="month">This Month</option>
+                        <option value="lastmonth">Last Month</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Status</label>
+                    <select class="form-select" @bind="selectedStatus" @bind:after="ApplyFilters">
+                        <option value="all">All</option>
+                        <option value="success">Success Only</option>
+                        <option value="failed">Failed Only</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Operation</label>
+                    <select class="form-select" @bind="selectedOperation" @bind:after="ApplyFilters">
+                        <option value="all">All Operations</option>
+                        @foreach (var op in operations)
+                        {
+                            <option value="@op">@op</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Records Per Page</label>
+                    <select class="form-select" @bind="pageSize" @bind:after="ApplyFilters">
+                        <option value="25">25 records</option>
+                        <option value="50">50 records</option>
+                        <option value="100">100 records</option>
+                        <option value="500">500 records</option>
+                        <option value="1000">1000 records</option>
+                    </select>
+                </div>
+            </div>
+
+            @if (selectedDateRange != "all" || selectedStatus != "all" || selectedOperation != "all")
+            {
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="ClearFilters">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- History Table Card -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-table"></i> Request History
+                <span class="badge bg-primary ms-2">@filteredRecords.Count records</span>
+            </h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" @onclick="RefreshData">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if (filteredRecords.Any())
+            {
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="sticky-top bg-light">
+                            <tr>
+                                <th style="width: 140px;">Timestamp</th>
+                                <th style="width: 120px;">Operation</th>
+                                <th class="text-end" style="width: 80px;">Prompt</th>
+                                <th class="text-end" style="width: 100px;">Completion</th>
+                                <th class="text-end" style="width: 80px;">Total</th>
+                                <th style="width: 100px;">Model</th>
+                                <th class="text-end" style="width: 80px;">Duration</th>
+                                <th class="text-end" style="width: 80px;">Cost</th>
+                                <th class="text-center" style="width: 60px;">Status</th>
+                                <th style="min-width: 200px;">Query/Error</th>
+                                <th style="width: 100px;">Session</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var record in filteredRecords.Take(pageSize))
+                            {
+                                <tr class="@(record.Success ? "" : "table-danger")"
+                                    @onclick="() => ShowRecordDetail(record)"
+                                    style="cursor: pointer;">
+                                    <td>
+                                        <small class="text-nowrap">
+                                            <i class="bi bi-clock"></i>
+                                            @record.Timestamp.ToLocalTime().ToString("MM/dd HH:mm:ss")
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">@record.Operation</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-info">@record.PromptTokens</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-success">@record.CompletionTokens</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-primary">@record.TotalTokens</strong>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">@record.Model</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <small>@record.DurationSeconds.ToString("F2")s</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <small class="text-success">$@record.EstimatedCost.ToString("F4")</small>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (record.Success)
+                                        {
+                                            <span class="badge bg-success" title="Success">✓</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger" title="@record.ErrorMessage">✗</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small class="text-muted text-truncate d-block" style="max-width: 300px;"
+                                               title="@(record.Success ? record.UserQuery : record.ErrorMessage)">
+                                            @if (record.Success)
+                                            {
+                                                @(record.UserQuery?.Length > 60 ? record.UserQuery.Substring(0, 60) + "..." : record.UserQuery ?? "N/A")
+                                            }
+                                            else
+                                            {
+                                                <span class="text-danger">@(record.ErrorMessage?.Length > 60 ? record.ErrorMessage.Substring(0, 60) + "..." : record.ErrorMessage ?? "Error")</span>
+                                            }
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <code style="font-size: 0.7rem;">@record.SessionId.Substring(0, Math.Min(8, record.SessionId.Length))</code>
+                                        </small>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="bg-light sticky-bottom">
+                            <tr class="fw-bold">
+                                <td colspan="2">
+                                    <i class="bi bi-calculator"></i> Totals (filtered):
+                                </td>
+                                <td class="text-end text-info">@filteredRecords.Sum(r => r.PromptTokens).ToString("N0")</td>
+                                <td class="text-end text-success">@filteredRecords.Sum(r => r.CompletionTokens).ToString("N0")</td>
+                                <td class="text-end text-primary">@filteredRecords.Sum(r => r.TotalTokens).ToString("N0")</td>
+                                <td>-</td>
+                                <td class="text-end">@filteredRecords.Where(r => r.Success).Average(r => r.DurationSeconds).ToString("F2")s</td>
+                                <td class="text-end text-success">$@filteredRecords.Sum(r => r.EstimatedCost).ToString("F2")</td>
+                                <td colspan="3">
+                                    <small class="text-muted">
+                                        @filteredRecords.Count(r => r.Success) success,
+                                        @filteredRecords.Count(r => !r.Success) failed
+                                    </small>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="p-5 text-center text-muted">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="mt-3">No records found matching the selected filters.</p>
+                    <button class="btn btn-outline-primary" @onclick="ClearFilters">Clear Filters</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Token Detail Modal -->
+@if (selectedRecord != null && showDetailModal)
+{
+    <TokenDetailModal IsVisible="showDetailModal"
+                      Record="selectedRecord"
+                      OnClose="CloseDetailModal" />
+}
+
+<!-- Confirm Dialog -->
+@if (showConfirmDialog)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">⚠️ Confirm Action</h5>
+                    <button type="button" class="btn-close" @onclick="CancelConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@confirmMessage</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelConfirm">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmAction">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .stats-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+    .stats-icon {
+        font-size: 3rem;
+        opacity: 0.3;
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-gradient-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .bg-gradient-warning {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+
+    .card {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .sticky-bottom {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+
+@code {
+    private TokenUsageService.TokenUsageStats stats = new();
+    private List<TokenUsageService.TokenUsageRecord> filteredRecords = new();
+    private List<string> operations = new();
+    private int historyCount = 0;
+    private int pageSize = 50;
+
+    private string selectedDateRange = "week";
+    private string selectedStatus = "all";
+    private string selectedOperation = "all";
+
+    private bool showDetailModal = false;
+    private TokenUsageService.TokenUsageRecord selectedRecord = null;
+
+    private bool showConfirmDialog = false;
+    private string confirmMessage = "";
+    private Action confirmedAction = null;
+
+    private System.Threading.Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        TokenUsageService.OnUsageUpdated += RefreshData;
+        RefreshData();
+
+        // Auto-refresh every 5 seconds
+        _timer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                RefreshData();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private void RefreshData()
+    {
+        stats = TokenUsageService.GetStatistics();
+        historyCount = TokenUsageService.GetHistoryCount();
+
+        var operationDict = TokenUsageService.GetUsageByOperation();
+        operations = operationDict.Keys.OrderBy(k => k).ToList();
+
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var allRecords = TokenUsageService.GetRecentUsage(100000); // Get all
+
+        // Date filter
+        allRecords = selectedDateRange switch
+        {
+            "today" => allRecords.Where(r => r.Timestamp.Date == DateTime.UtcNow.Date).ToList(),
+            "yesterday" => allRecords.Where(r => r.Timestamp.Date == DateTime.UtcNow.Date.AddDays(-1)).ToList(),
+            "week" => allRecords.Where(r => r.Timestamp >= DateTime.UtcNow.AddDays(-7)).ToList(),
+            "month" => allRecords.Where(r => r.Timestamp >= new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1)).ToList(),
+            "lastmonth" => allRecords.Where(r => r.Timestamp >= new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-1)
+                                                && r.Timestamp < new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1)).ToList(),
+            _ => allRecords
+        };
+
+        // Status filter
+        allRecords = selectedStatus switch
+        {
+            "success" => allRecords.Where(r => r.Success).ToList(),
+            "failed" => allRecords.Where(r => !r.Success).ToList(),
+            _ => allRecords
+        };
+
+        // Operation filter
+        if (selectedOperation != "all")
+        {
+            allRecords = allRecords.Where(r => r.Operation == selectedOperation).ToList();
+        }
+
+        filteredRecords = allRecords.OrderByDescending(r => r.Timestamp).ToList();
+    }
+
+    private void ClearFilters()
+    {
+        selectedDateRange = "all";
+        selectedStatus = "all";
+        selectedOperation = "all";
+        ApplyFilters();
+    }
+
+    private int GetSuccessRate()
+    {
+        if (stats.TotalRequests == 0) return 0;
+        return (int)((stats.SuccessfulRequests * 100.0) / stats.TotalRequests);
+    }
+
+    private void ShowRecordDetail(TokenUsageService.TokenUsageRecord record)
+    {
+        selectedRecord = record;
+        showDetailModal = true;
+    }
+
+    private void CloseDetailModal()
+    {
+        showDetailModal = false;
+    }
+
+    private async Task ExportToCsv()
+    {
+        var fileName = $"token_usage_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        TokenUsageService.ExportToCsv(fileName);
+
+        // Show success message (you can use a toast notification library)
+        await JSRuntime.InvokeVoidAsync("alert", $"Exported to {fileName}");
+    }
+
+    private void ShowClearOldConfirm()
+    {
+        confirmMessage = "Are you sure you want to clear all records older than 30 days? This action cannot be undone.";
+        confirmedAction = () =>
+        {
+            TokenUsageService.ClearOldHistory(30);
+            RefreshData();
+        };
+        showConfirmDialog = true;
+    }
+
+    private void ShowClearAllConfirm()
+    {
+        confirmMessage = "⚠️ WARNING: Are you sure you want to clear ALL history? This action cannot be undone and all data will be permanently deleted!";
+        confirmedAction = () =>
+        {
+            TokenUsageService.ClearHistory();
+            RefreshData();
+        };
+        showConfirmDialog = true;
+    }
+
+    private void ConfirmAction()
+    {
+        confirmedAction?.Invoke();
+        showConfirmDialog = false;
+        confirmMessage = "";
+        confirmedAction = null;
+    }
+
+    private void CancelConfirm()
+    {
+        showConfirmDialog = false;
+        confirmMessage = "";
+        confirmedAction = null;
+    }
+
+    public void Dispose()
+    {
+        TokenUsageService.OnUsageUpdated -= RefreshData;
+        _timer?.Dispose();
+    }
+}
