@@ -1,0 +1,34 @@
+﻿Timestamp,Role,Content,Tokens
+"2025-12-02 11:24:29","User","show top 2 java profiles
+",""
+"2025-12-02 11:24:34","AI","🔍 **Search Summary**
+Found top two Java profiles from the results you provided.
+
+💡 **Key Findings** ⭐⭐⭐⭐⭐
+- Top result (Source 1): Sarah Chen — Principal Java Architect & AI Engineering Lead with 13+ years of experience. Notable in building enterprise-scale Java architectures, AI/ML platforms on AWS, and integrating large-language models into Java applications. Strong emphasis on AWS ecosystem (Bedrock, SageMaker, Lambda, etc.), scalable Java microservices (Spring Boot), and AI/ML deployment pipelines.
+  - Relevance: ████████░░ (83%)
+- Second result (Source 2): T. Sunil Babu — Java Architect with 5+ years of Java development/architecture experience. Focused on Java, microservices, Spring Boot, AWS, Kafka, and enterprise backend solutions; BFSI/Insurance/Telecom domain exposure.
+  - Relevance: ███████░░░ (78%)
+
+📄 **Source 1** ⭐⭐⭐⭐⭐
+Sarah Chen
+- Title: Principal Java Architect & AI Engineering Lead
+- Highlights: 13+ years in enterprise Java; distributed Java microservices (Spring Boot); AI/ML integration with enterprise apps; AWS-based AI/ML platform; LLM integration (GPT/Claude/PaLM); high-availability architectures; AWS Bedrock, SageMaker, Lambda, Kinesis; performance optimizations; mentoring.
+- Tech focus: Java, Spring Boot, AWS, AI/ML, MLOps, OpenAI/LLMs, Redis, Docker/Kubernetes
+- Notable achievements: Led architecture and development of AWS’s AI/ML platform serving hundreds of thousands of users; integrated multiple LLMs into enterprise Java apps; sub-50ms latency ML inference pipelines; high uptime.
+- Source: <a href=""https://resumestore12345.blob.core.windows.net/resumes/Sarah_Jen_13years_Java.pdf"" target=""_blank"">View Source</a>
+
+🔗 <a href=""https://resumestore12345.blob.core.windows.net/resumes/Sarah_Jen_13years_Java.pdf"" target=""_blank"">View Source</a>
+
+📄 **Source 2** ⭐⭐⭐⭐
+T. Sunil Babu
+- Title: Java Architect / Senior Java Developer
+- Highlights: 5+ years in Java backend development and architecture; Java 8/11/17; Spring Boot; Microservices; AWS; Kafka; BFSI/Insurance/Telecom domains; strong backend/API focus; CI/CD with Jenkins; Docker/Kubernetes familiarity.
+- Tech focus: Java, Spring Boot, Microservices, AWS, Kafka, REST/SOAP
+- Notable strengths: Backend design, performance optimization, and leading development efforts on Java-based microservices.
+- Source: <a href=""https://resumestore12345.blob.core.windows.net/resumes/233716-48-K Obulareddy.docx"" target=""_blank"">View Source</a>
+
+🔗 <a href=""https://resumestore12345.blob.core.windows.net/resumes/233716-48-K%20Obulareddy.docx"" target=""_blank"">View Source</a>
+
+✨ **Additional Context**
+- Both results are resume-style profiles, highlighting strong Java/Spring Boot backgrounds with additional cloud and distributed systems experience. If you’d like, I can extract more specific details (e.g., exact technologies or project examples) or search for more profiles filtered by industry ( Banking/Finance, Tech Giants, etc.) or by extra criteria (Java 17+, Spring Boot 3, Kubernetes, Kafka, AWS, etc.).","766"

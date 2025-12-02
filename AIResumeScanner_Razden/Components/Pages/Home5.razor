@@ -1,4 +1,4 @@
-﻿@page "/home2"
+﻿@page "/home5"
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject SentimentService MySentimentService
@@ -71,6 +71,16 @@
                                 <span>Export PDF</span>
                             </button>
                         }
+
+                        @if (conversationHistory.Count > 0)
+                        {
+                            <button type="button"
+                                    class="chat-button warning"
+                                    @onclick="ClearHistory">
+                                <i class="fas fa-trash-alt"></i>
+                                <span>Clear History</span>
+                            </button>
+                        }
                     </div>
 
                     @if (!HasEnoughTokens())
@@ -88,11 +98,58 @@
 
             <br />
 
+            <!-- Conversation History Section -->
+            @if (conversationHistory.Count > 0)
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">💬 Conversation History</h5>
+                        <span class="badge bg-light text-dark">@conversationHistory.Count @(conversationHistory.Count == 1 ? "exchange" : "exchanges")</span>
+                    </div>
+                    <div class="card-body conversation-container">
+                        @foreach (var exchange in conversationHistory)
+                        {
+                            <div class="conversation-exchange mb-4">
+                                <!-- User Query -->
+                                <div class="message-container user-message">
+                                    <div class="message-header">
+                                        <span class="message-role">
+                                            <i class="fas fa-user"></i> You
+                                        </span>
+                                        <span class="message-time">@exchange.Timestamp.ToString("MMM dd, yyyy HH:mm:ss")</span>
+                                    </div>
+                                    <div class="message-content">
+                                        @exchange.Query
+                                    </div>
+                                </div>
+
+                                <!-- AI Response -->
+                                <div class="message-container ai-message">
+                                    <div class="message-header">
+                                        <span class="message-role">
+                                            <i class="fas fa-robot"></i> AI Assistant
+                                        </span>
+                                        @if (exchange.TokensUsed > 0)
+                                        {
+                                            <span class="badge bg-info">@exchange.TokensUsed tokens</span>
+                                        }
+                                    </div>
+                                    <div class="message-content">
+                                        @((MarkupString)exchange.Response)
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Current Response Section -->
             @if (!string.IsNullOrEmpty(chatResponse))
             {
                 <div class="card mb-4">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">💬 Response</h5>
+                        <h5 class="mb-0">💬 Current Response</h5>
                     </div>
                     <div class="card-body">
                         <div style="white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
@@ -161,6 +218,12 @@
                         <small class="text-muted">Session ID:</small>
                         <div class="text-truncate" title="@sessionId">
                             <code style="font-size: 0.75rem;">@sessionId.Substring(0, 8)...</code>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Exchanges:</small>
+                        <div>
+                            <span class="badge bg-primary">@conversationHistory.Count</span>
                         </div>
                     </div>
                     <div class="mb-2">
@@ -328,24 +391,131 @@
                 box-shadow: 0 4px 16px rgba(244, 67, 54, 0.4);
             }
 
-    /* Responsive */
-    @@media (max-width: 768px) {
-        .action-buttons
-
-    {
-        gap: 0.5rem;
-    }
-
-    .chat-button {
-        min-width: 100px;
-        padding: 0.5rem 1rem;
-        font-size: 0.8125rem;
-    }
-
-        .chat-button i {
-            font-size: 0.75rem;
+        /* Warning Button (Clear History) */
+        .chat-button.warning {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
         }
 
+            .chat-button.warning:hover {
+                background: linear-gradient(135deg, #f57c00, #e65100);
+                box-shadow: 0 4px 16px rgba(255, 152, 0, 0.4);
+            }
+
+    /* Conversation History Styles */
+    .conversation-container {
+        max-height: 600px;
+        overflow-y: auto;
+        padding: 15px;
+        background-color: #f8f9fa;
+    }
+
+    .conversation-exchange {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 20px;
+    }
+
+        .conversation-exchange:last-child {
+            border-bottom: none;
+        }
+
+    .message-container {
+        margin-bottom: 15px;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .user-message {
+        background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        border-left: 4px solid #2196F3;
+    }
+
+    .ai-message {
+        background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+        border-left: 4px solid #9c27b0;
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .message-role {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #333;
+    }
+
+        .message-role i {
+            margin-right: 5px;
+        }
+
+    .message-time {
+        font-size: 0.75rem;
+        color: #666;
+    }
+
+    .message-content {
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: #333;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    /* Scrollbar Styling */
+    .conversation-container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .conversation-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .conversation-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+
+        .conversation-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .action-buttons {
+            gap: 0.5rem;
+        }
+
+        .chat-button {
+            min-width: 100px;
+            padding: 0.5rem 1rem;
+            font-size: 0.8125rem;
+        }
+
+            .chat-button i {
+                font-size: 0.75rem;
+            }
+
+        .conversation-container {
+            max-height: 400px;
+        }
+
+        .message-container {
+            padding: 12px;
+        }
+
+        .message-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
     }
 </style>
 
@@ -358,6 +528,9 @@
     private string chatResponse = string.Empty;
     private SearchAgent2 currentAgent = null;
     private int lastRequestTokens = 0;
+
+    // Conversation History
+    private List<ConversationExchange> conversationHistory = new();
 
     [Inject]
     public IConfiguration _configuration { get; set; }
@@ -376,6 +549,15 @@
     private string textAnalyticsApiKey { get; set; } = string.Empty;
 
     private string sessionId = Guid.NewGuid().ToString();
+
+    // Inner class for conversation tracking
+    private class ConversationExchange
+    {
+        public DateTime Timestamp { get; set; }
+        public string Query { get; set; }
+        public string Response { get; set; }
+        public int TokensUsed { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -414,12 +596,12 @@
         if (!HasEnoughTokens())
         {
             NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Warning,
-                    Summary = "Rate Limit",
-                    Detail = "Insufficient tokens available. Please wait before submitting.",
-                    Duration = 4000
-                });
+            {
+                Severity = NotificationSeverity.Warning,
+                Summary = "Rate Limit",
+                Detail = "Insufficient tokens available. Please wait before submitting.",
+                Duration = 4000
+            });
             return;
         }
 
@@ -435,12 +617,12 @@
             if (string.IsNullOrWhiteSpace(input))
             {
                 NotificationService.Notify(new NotificationMessage
-                    {
-                        Severity = NotificationSeverity.Info,
-                        Summary = "Empty Input",
-                        Detail = "Please provide a job description.",
-                        Duration = 3000
-                    });
+                {
+                    Severity = NotificationSeverity.Info,
+                    Summary = "Empty Input",
+                    Detail = "Please provide a job description.",
+                    Duration = 3000
+                });
                 return;
             }
 
@@ -477,25 +659,34 @@
             var tokensAfter = TokenUsageService.GetTokensUsedLastMinute();
             lastRequestTokens = tokensAfter - tokensBefore;
 
+            // Add to conversation history
+            conversationHistory.Add(new ConversationExchange
+            {
+                Timestamp = DateTime.Now,
+                Query = input,
+                Response = response,
+                TokensUsed = lastRequestTokens
+            });
+
             NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Success,
-                    Summary = "Search Complete",
-                    Detail = $"Query processed successfully in {duration.TotalSeconds:F1}s using {lastRequestTokens} tokens",
-                    Duration = 4000
-                });
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Search Complete",
+                Detail = $"Query processed successfully in {duration.TotalSeconds:F1}s using {lastRequestTokens} tokens",
+                Duration = 4000
+            });
         }
         catch (Exception ex)
         {
             chatResponse = $"❌ Error: {ex.Message}";
 
             NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Error",
-                    Detail = ex.Message,
-                    Duration = 5000
-                });
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = ex.Message,
+                Duration = 5000
+            });
 
             Console.WriteLine($"\nError: {ex.Message}");
             Console.WriteLine($"Stack: {ex.StackTrace}\n");
@@ -514,12 +705,12 @@
             if (currentAgent == null)
             {
                 NotificationService.Notify(new NotificationMessage
-                    {
-                        Severity = NotificationSeverity.Warning,
-                        Summary = "No Data",
-                        Detail = "Please submit a query first.",
-                        Duration = 3000
-                    });
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "No Data",
+                    Detail = "Please submit a query first.",
+                    Duration = 3000
+                });
                 return;
             }
 
@@ -538,22 +729,22 @@
             File.WriteAllText(csvPath, sb.ToString(), Encoding.UTF8);
 
             NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Success,
-                    Summary = "Export Successful",
-                    Detail = $"CSV saved to {csvPath}",
-                    Duration = 4000
-                });
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Export Successful",
+                Detail = $"CSV saved to {csvPath}",
+                Duration = 4000
+            });
         }
         catch (Exception ex)
         {
             NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Export Failed",
-                    Detail = ex.Message,
-                    Duration = 4000
-                });
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Export Failed",
+                Detail = ex.Message,
+                Duration = 4000
+            });
         }
     }
 
@@ -564,12 +755,12 @@
             if (currentAgent == null)
             {
                 NotificationService.Notify(new NotificationMessage
-                    {
-                        Severity = NotificationSeverity.Warning,
-                        Summary = "No Data",
-                        Detail = "Please submit a query first.",
-                        Duration = 3000
-                    });
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "No Data",
+                    Detail = "Please submit a query first.",
+                    Duration = 3000
+                });
                 return;
             }
 
@@ -608,22 +799,22 @@
             document.Close();
 
             NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Success,
-                    Summary = "Export Successful",
-                    Detail = $"PDF saved to {pdfPath}",
-                    Duration = 4000
-                });
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Export Successful",
+                Detail = $"PDF saved to {pdfPath}",
+                Duration = 4000
+            });
         }
         catch (Exception ex)
         {
             NotificationService.Notify(new NotificationMessage
-                {
-                    Severity = NotificationSeverity.Error,
-                    Summary = "Export Failed",
-                    Detail = ex.Message,
-                    Duration = 4000
-                });
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Export Failed",
+                Detail = ex.Message,
+                Duration = 4000
+            });
         }
     }
 
@@ -633,6 +824,24 @@
         chatResponse = string.Empty;
         showExport = false;
         lastRequestTokens = 0;
+        StateHasChanged();
+    }
+
+    void ClearHistory()
+    {
+        conversationHistory.Clear();
+        chatResponse = string.Empty;
+        showExport = false;
+        lastRequestTokens = 0;
+
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Info,
+            Summary = "History Cleared",
+            Detail = "Conversation history has been cleared.",
+            Duration = 3000
+        });
+
         StateHasChanged();
     }
 }
