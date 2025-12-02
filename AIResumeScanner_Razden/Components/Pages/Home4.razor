@@ -20,12 +20,12 @@
 
 <!-- Universal URL Modal -->
 <UniversalUrlModal IsVisible="@showUrlModal"
-                   IsVisibleChanged="@((value) => showUrlModal = value)"
-                   Url="@currentUrl"
-                   Title="@currentUrlTitle"
-                   Subtitle="@currentUrlSubtitle"
-                   Size="large"
-                   ShowFullscreenButton="true" />
+IsVisibleChanged="@((value) => showUrlModal = value)"
+Url="@currentUrl"
+Title="@currentUrlTitle"
+Subtitle="@currentUrlSubtitle"
+Size="large"
+ShowFullscreenButton="true" />
 
 <div class="chat-container">
     <!-- Header -->
@@ -251,11 +251,11 @@
                     <div class="input-container">
                         <div class="input-wrapper">
                             <RadzenTextArea @bind-Value="jobModel.JobDescription"
-                                            Name="JobDescription"
-                                            class="chat-input"
-                                            Rows="1"
-                                            Placeholder="Describe the job position and requirements..."
-                                            @oninput="OnInputChange" />
+                            Name="JobDescription"
+                            class="chat-input"
+                            Rows="1"
+                            Placeholder="Describe the job position and requirements..."
+                            @oninput="OnInputChange" />
 
                             <div class="input-actions">
                                 @if (chatHistory.Count > 0)
@@ -273,9 +273,9 @@
                                 }
 
                                 <button type="submit"
-                                        class="input-action-btn send-btn @(isSubmitting || !HasEnoughTokens() ? "disabled" : "")"
-                                        disabled="@(isSubmitting || !HasEnoughTokens())"
-                                        title="Send message">
+                                class="input-action-btn send-btn @(isSubmitting || !HasEnoughTokens() ? "disabled" : "")"
+                                disabled="@(isSubmitting || !HasEnoughTokens())"
+                                title="Send message">
                                     @if (isSubmitting)
                                     {
                                         <i class="fas fa-spinner fa-spin"></i>
@@ -315,6 +315,7 @@
                     <span>Token Usage</span>
                 </div>
                 <TokenUsageWidget />
+                
             </div>
 
             <!-- Session Info -->
@@ -438,9 +439,9 @@
         display: flex;
         flex-direction: column;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #1a1a1a;
-        height: 100vh; /* Add fixed height */
+        color: #1a1a1a;      
         overflow: hidden; /* Prevent container overflow */
+        @* height: 100vh;  *@/* Add fixed height */
     }
 
     .chat-main {
@@ -452,6 +453,7 @@
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
         overflow: hidden;
         min-height: 0; /* Critical for flex scrolling */
+        height: 100vh;
     }
 
     .messages-container {
@@ -473,6 +475,7 @@
         overflow-y: auto;
         overflow-x: hidden; /* Prevent horizontal scroll */
         min-height: 0; /* Critical for flex scrolling */
+        
     }
 
     .chat-layout {
@@ -493,6 +496,7 @@
         justify-content: space-between;
         align-items: center;
         border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        min-height:0;
     }
 
     .header-content {
@@ -626,6 +630,7 @@
         border-radius: 20px;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
         overflow: hidden;
+        min-height:0;
     }
 
     .welcome-screen {
@@ -636,6 +641,7 @@
         justify-content: center;
         padding: 3rem;
         text-align: center;
+        min-height:0;
     }
 
     .welcome-icon-container {
@@ -771,12 +777,15 @@
     }
 
     .messages-container {
-        flex: 1;
-        overflow-y: auto;
+        flex: 1; /* Takes all available space */
+        overflow-y: auto; /* Enable vertical scrolling */
+        overflow-x: hidden; /* Prevent horizontal scroll */
         padding: 2rem;
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
+        min-height: 0; /* Critical - allows flex item to shrink below content size */
+        max-height: 100%;
     }
 
     .message {
@@ -1019,6 +1028,7 @@
         padding: 1.5rem;
         border-top: 1px solid #e0e0e0;
         background: white;
+        flex-shrink: 0;
     }
 
     .rate-limit-banner {
@@ -1165,6 +1175,9 @@
         flex-direction: column;
         gap: 1rem;
         overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0; /* Critical for flex scrolling */
+        flex-shrink: 0;
     }
 
     .sidebar-card {
@@ -1304,24 +1317,37 @@
 
     .messages-container::-webkit-scrollbar,
     .chat-sidebar::-webkit-scrollbar {
-        width: 6px;
+        width: 8px;
     }
 
     .messages-container::-webkit-scrollbar-track,
     .chat-sidebar::-webkit-scrollbar-track {
         background: transparent;
+        border-radius: 4px;
     }
 
     .messages-container::-webkit-scrollbar-thumb,
     .chat-sidebar::-webkit-scrollbar-thumb {
         background: #d0d0d0;
-        border-radius: 3px;
+        border-radius: 4px;
+        transition: background 0.2s ease;
     }
 
         .messages-container::-webkit-scrollbar-thumb:hover,
         .chat-sidebar::-webkit-scrollbar-thumb:hover {
             background: #b0b0b0;
         }
+
+    .messages-container,
+    .chat-sidebar {
+        scrollbar-width: thin;
+        scrollbar-color: #d0d0d0 #f5f5f5;
+    }
+
+    /* Smooth scrolling behavior */
+    .messages-container {
+        scroll-behavior: smooth;
+    }
 
     @@media (max-width: 1024px) {
         .chat-sidebar {
@@ -1330,6 +1356,10 @@
 
         .chat-layout {
             padding: 0.5rem;
+        }
+
+        .messages-container {
+            padding: 1.5rem;
         }
     }
 
@@ -1352,10 +1382,19 @@
 
         .messages-container {
             padding: 1rem;
+            gap: 1rem;
         }
 
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
+        }
+
+        .input-area {
+            padding: 1rem;
+        }
+
+        .chat-sidebar {
+            width: 100%;
         }
     
     
