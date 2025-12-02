@@ -1,0 +1,1913 @@
+﻿@page "/home4"
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject SentimentService MySentimentService
+@inject TokenUsageService TokenUsageService
+@inject IJSRuntime JSRuntime
+@using System.Web
+@using iTextSharp.text;
+@using iTextSharp.text.pdf;
+@using Microsoft.Extensions.Azure;
+@using System.Reflection.Metadata;
+@using System.Text;
+@using System.Text.RegularExpressions;
+@using AIResumeScanner_Razden.Services;
+@using Document = iTextSharp.text.Document;
+
+<PageTitle>AI Resume Scanner</PageTitle>
+
+<OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
+
+<!-- Universal URL Modal -->
+<UniversalUrlModal IsVisible="@showUrlModal"
+                   IsVisibleChanged="@((value) => showUrlModal = value)"
+                   Url="@currentUrl"
+                   Title="@currentUrlTitle"
+                   Subtitle="@currentUrlSubtitle"
+                   Size="large"
+                   ShowFullscreenButton="true" />
+
+<div class="chat-container">
+    <!-- Header -->
+    <div class="chat-header">
+        <div class="header-content">
+            <div class="header-icon-wrapper">
+                <div class="icon-pulse"></div>
+                <i class="fas fa-brain header-icon"></i>
+            </div>
+            <div class="header-text">
+                <h1 class="header-title">AI Resume Scanner</h1>
+                <p class="header-subtitle">Powered by Advanced AI Analytics</p>
+            </div>
+        </div>
+
+        @* <!-- Token Status Badge -->
+        <div class="token-status-badge">
+            <i class="fas fa-bolt"></i>
+            <span>@TokenUsageService.GetRemainingTokensPerMinute() tokens</span>
+        </div> *@
+    </div>
+
+    <div class="chat-layout">
+        <!-- Main Chat Area -->
+        <div class="chat-main">
+            <!-- Welcome Screen (shown when no messages) -->
+            @if (chatHistory.Count == 0 && !isSubmitting)
+            {
+                <div class="welcome-screen">
+                    <div class="welcome-icon-container">
+                        <div class="floating-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="icon-orbit orbit-1"></div>
+                        <div class="icon-orbit orbit-2"></div>
+                        <div class="icon-orbit orbit-3"></div>
+                    </div>
+
+                    <h2 class="welcome-title">Welcome to AI Resume Scanner</h2>
+                    <p class="welcome-subtitle">Analyze resumes with cutting-edge AI technology</p>
+
+                    <div class="feature-cards">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-search-plus"></i>
+                            </div>
+                            <h3>Deep Analysis</h3>
+                            <p>Advanced AI-powered resume screening</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <h3>Smart Insights</h3>
+                            <p>Get detailed candidate evaluations</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-file-export"></i>
+                            </div>
+                            <h3>Easy Export</h3>
+                            <p>Download results in CSV or PDF</p>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Chat Messages Area -->
+            <div class="messages-container" style="@(chatHistory.Count == 0 && !isSubmitting ? "display: none;" : "")">
+
+                <!-- Display all chat history -->
+                @foreach (var chat in chatHistory)
+                {
+                    <!-- User Message -->
+                    <div class="message user-message">
+                        <div class="message-avatar user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-sender">You</span>
+                                <span class="message-time">@chat.Timestamp.ToString("HH:mm")</span>
+                            </div>
+                            <div class="message-text">
+                                @chat.UserQuery
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Response -->
+                    <div class="message ai-message">
+                        <div class="message-avatar ai-avatar">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-sender">AI Assistant</span>
+                                <span class="message-time">@chat.Timestamp.AddSeconds(5).ToString("HH:mm")</span>
+                            </div>
+                            <div class="message-text ai-response">
+                                @((MarkupString)ConvertUrlsToClickableLinks(chat.AiResponse))
+                            </div>
+
+                            <div class="message-actions">
+                                <button class="action-btn" @onclick="() => ExportSingleToCsv(chat)" title="Export to CSV">
+                                    <i class="fas fa-file-csv"></i>
+                                    <span>CSV</span>
+                                </button>
+                                <button class="action-btn" @onclick="() => ExportSingleToPdf(chat)" title="Export to PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <span>PDF</span>
+                                </button>
+                                <button class="action-btn" @onclick="() => CopyResponseSingle(chat.AiResponse)" title="Copy to clipboard">
+                                    <i class="fas fa-copy"></i>
+                                    <span>Copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Current Typing Indicator -->
+                @if (isSubmitting)
+                {
+                    <!-- Current User Message -->
+                    <div class="message user-message">
+                        <div class="message-avatar user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-sender">You</span>
+                                <span class="message-time">@DateTime.Now.ToString("HH:mm")</span>
+                            </div>
+                            <div class="message-text">
+                                @jobModel.JobDescription
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Typing Indicator -->
+                    <div class="message ai-message">
+                        <div class="message-avatar ai-avatar">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-sender">AI Assistant</span>
+                                <span class="message-time">@DateTime.Now.ToString("HH:mm")</span>
+                            </div>
+                            <div class="typing-indicator">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                            <span class="processing-text">Analyzing resumes with AI...</span>
+                        </div>
+                    </div>
+                }
+
+                <!-- Session Statistics (shown after messages) -->
+                @if (currentAgent != null && chatHistory.Count > 0)
+                {
+                    var stats = currentAgent.GetSessionStats();
+                    <div class="stats-card">
+                        <div class="stats-header">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Session Statistics</span>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-paper-plane"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value">@stats.RequestCount</span>
+                                    <span class="stat-label">Requests</span>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value">@stats.TotalTokens.ToString("N0")</span>
+                                    <span class="stat-label">Tokens</span>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value">@stats.AverageTokensPerRequest.ToString("F0")</span>
+                                    <span class="stat-label">Avg/Request</span>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <span class="stat-value">@GetSuccessRate(stats)%</span>
+                                    <span class="stat-label">Success</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                @if (!HasEnoughTokens())
+                {
+                    <div class="rate-limit-banner">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Rate limit reached. @TokenUsageService.GetRemainingTokensPerMinute() tokens remaining. Resets in ~@GetSecondsUntilReset()s</span>
+                    </div>
+                }
+
+                <RadzenTemplateForm Data="@jobModel" TItem="JobModel" Submit="@HandleSubmit" class="input-form">
+                    <div class="input-container">
+                        <div class="input-wrapper">
+                            <RadzenTextArea @bind-Value="jobModel.JobDescription"
+                                            Name="JobDescription"
+                                            class="chat-input"
+                                            Rows="1"
+                                            Placeholder="Describe the job position and requirements..."
+                                            @oninput="OnInputChange" />
+
+                            <div class="input-actions">
+                                @if (chatHistory.Count > 0)
+                                {
+                                    <button type="button" class="input-action-btn clear-history-btn" @onclick="ClearHistory" title="Clear chat history">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                }
+
+                                @if (!string.IsNullOrEmpty(jobModel.JobDescription))
+                                {
+                                    <button type="button" class="input-action-btn clear-btn" @onclick="ClearTextArea" title="Clear">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                }
+
+                                <button type="submit"
+                                        class="input-action-btn send-btn @(isSubmitting || !HasEnoughTokens() ? "disabled" : "")"
+                                        disabled="@(isSubmitting || !HasEnoughTokens())"
+                                        title="Send message">
+                                    @if (isSubmitting)
+                                    {
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-paper-plane"></i>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="input-footer">
+                            <span class="input-hint">
+                                <i class="fas fa-lightbulb"></i>
+                                Be specific about skills, experience, and qualifications
+                            </span>
+                            @if (chatHistory.Count > 0)
+                            {
+                                <span class="chat-count">
+                                    <i class="fas fa-comments"></i>
+                                    @chatHistory.Count conversation@(chatHistory.Count != 1 ? "s" : "")
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </RadzenTemplateForm>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="chat-sidebar">
+            <!-- Token Widget -->
+            <div class="sidebar-card token-card">
+                <div class="card-header-custom">
+                    <i class="fas fa-bolt"></i>
+                    <span>Token Usage</span>
+                </div>
+                <TokenUsageWidget />
+            </div>
+
+            <!-- Session Info -->
+            @* <div class="sidebar-card">
+                <div class="card-header-custom">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Session Info</span>
+                </div>
+                <div class="card-body-custom">
+                    <div class="info-item">
+                        <i class="fas fa-fingerprint"></i>
+                        <div class="info-content">
+                            <span class="info-label">Session ID</span>
+                            <code class="session-id" title="@sessionId">@sessionId.Substring(0, 12)...</code>
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <i class="fas fa-comments"></i>
+                        <div class="info-content">
+                            <span class="info-label">Conversations</span>
+                            <span class="token-badge">@chatHistory.Count total</span>
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <i class="fas fa-download"></i>
+                        <div class="info-content">
+                            <span class="info-label">Export Status</span>
+                            @if (chatHistory.Count > 0)
+                            {
+                                <span class="status-badge success">
+                                    <i class="fas fa-check"></i> Ready
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="status-badge pending">
+                                    <i class="fas fa-clock"></i> Pending
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    @if (lastRequestTokens > 0)
+                    {
+                        <div class="info-item">
+                            <i class="fas fa-chart-pie"></i>
+                            <div class="info-content">
+                                <span class="info-label">Last Request</span>
+                                <span class="token-badge">@lastRequestTokens tokens</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div> *@
+
+            <!-- Quick Actions -->
+            @if (chatHistory.Count > 0)
+            {
+                <div class="sidebar-card">
+                    <div class="card-header-custom">
+                        <i class="fas fa-download"></i>
+                        <span>Export All</span>
+                    </div>
+                    <div class="card-body-custom">
+                        <button class="action-btn-full" @onclick="ExportAllToCsv">
+                            <i class="fas fa-file-csv"></i>
+                            <span>Export All to CSV</span>
+                        </button>
+                        <button class="action-btn-full" @onclick="ExportAllToPdf">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>Export All to PDF</span>
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Quick Tips -->
+           @*  <div class="sidebar-card tips-card">
+                <div class="card-header-custom">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Pro Tips</span>
+                </div>
+                <div class="card-body-custom">
+                    <div class="tip-item">
+                        <i class="fas fa-star"></i>
+                        <span>Be specific in job descriptions</span>
+                    </div>
+                    <div class="tip-item">
+                        <i class="fas fa-list-check"></i>
+                        <span>Include required skills & qualifications</span>
+                    </div>
+                    <div class="tip-item">
+                        <i class="fas fa-gauge-high"></i>
+                        <span>Monitor token usage regularly</span>
+                    </div>
+                    <div class="tip-item">
+                        <i class="fas fa-file-arrow-down"></i>
+                        <span>Export results for offline review</span>
+                    </div>
+                </div>
+            </div> *@
+
+            
+        </div>
+    </div>
+</div>
+
+<style>
+    @@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .chat-container {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #1a1a1a;
+    }
+
+    .chat-header {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem 2rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .header-icon-wrapper {
+        position: relative;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .icon-pulse {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        opacity: 0.3;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 0.3;
+        }
+
+        50% {
+            transform: scale(1.3);
+            opacity: 0;
+        }
+    }
+
+    .header-icon {
+        font-size: 2rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        position: relative;
+        z-index: 1;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @@keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-5px);
+        }
+    }
+
+    .header-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+    }
+
+    .header-subtitle {
+        font-size: 0.875rem;
+        color: #666;
+        margin: 0;
+    }
+
+    .token-status-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    /* View Source/URL Link Styling */
+    .view-url-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.375rem 0.875rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        margin: 0 0.25rem;
+    }
+
+        .view-url-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        }
+
+        .view-url-link i {
+            font-size: 0.75rem;
+        }
+
+    .chat-layout {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .welcome-screen {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+        text-align: center;
+    }
+
+    .welcome-icon-container {
+        position: relative;
+        width: 150px;
+        height: 150px;
+        margin-bottom: 2rem;
+    }
+
+    .floating-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        animation: float 3s ease-in-out infinite;
+        z-index: 2;
+    }
+
+        .floating-icon i {
+            font-size: 2.5rem;
+            color: white;
+        }
+
+    .icon-orbit {
+        position: absolute;
+        border: 2px solid rgba(102, 126, 234, 0.3);
+        border-radius: 50%;
+        animation: rotate 20s linear infinite;
+    }
+
+    .orbit-1 {
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+    }
+
+    .orbit-2 {
+        width: 80%;
+        height: 80%;
+        top: 10%;
+        left: 10%;
+        animation-duration: 15s;
+        animation-direction: reverse;
+    }
+
+    .orbit-3 {
+        width: 60%;
+        height: 60%;
+        top: 20%;
+        left: 20%;
+        animation-duration: 10s;
+    }
+
+    @@keyframes rotate {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .welcome-title {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+
+    .welcome-subtitle {
+        font-size: 1.125rem;
+        color: #666;
+        margin-bottom: 3rem;
+    }
+
+    .feature-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 800px;
+    }
+
+    .feature-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        padding: 2rem;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+    }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+        }
+
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .feature-card h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #1a1a1a;
+    }
+
+    .feature-card p {
+        font-size: 0.875rem;
+        color: #666;
+        margin: 0;
+    }
+
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .message {
+        display: flex;
+        gap: 1rem;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.125rem;
+        color: white;
+    }
+
+    .user-avatar {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+    }
+
+    .ai-avatar {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+
+    .message-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .message-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .message-sender {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #1a1a1a;
+    }
+
+    .message-time {
+        font-size: 0.75rem;
+        color: #999;
+    }
+
+    .message-text {
+        background: #f5f5f5;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .user-message .message-text {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    }
+
+    .ai-response {
+        background: white;
+        border: 1px solid #e0e0e0;
+    }
+
+    .typing-indicator {
+        display: flex;
+        gap: 0.25rem;
+        padding: 1rem 1.25rem;
+        background: #f5f5f5;
+        border-radius: 12px;
+        width: fit-content;
+    }
+
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #667eea;
+        border-radius: 50%;
+        animation: typing 1.4s ease-in-out infinite;
+    }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+    @@keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.7;
+        }
+
+        30% {
+            transform: translateY(-10px);
+            opacity: 1;
+        }
+    }
+
+    .processing-text {
+        font-size: 0.875rem;
+        color: #666;
+        margin-top: 0.5rem;
+    }
+
+    .message-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .action-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #666;
+    }
+
+        .action-btn:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+    .action-btn-full {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #666;
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+        .action-btn-full:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+    .stats-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .stats-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #667eea;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 8px;
+    }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.875rem;
+    }
+
+    .stat-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stat-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #666;
+    }
+
+    .input-area {
+        padding: 1.5rem;
+        border-top: 1px solid #e0e0e0;
+        background: white;
+    }
+
+    .rate-limit-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 87, 34, 0.1));
+        border-left: 3px solid #ff9800;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.875rem;
+        color: #e65100;
+    }
+
+    .input-form {
+        width: 100%;
+    }
+
+    .input-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
+        background: #f5f5f5;
+        border-radius: 12px;
+        padding: 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+        .input-wrapper:focus-within {
+            background: white;
+            box-shadow: 0 0 0 2px #667eea;
+        }
+
+    .chat-input {
+        flex: 1;
+        border: none !important;
+        background: transparent !important;
+        resize: none;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        padding: 0.5rem;
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+        .chat-input:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+    .input-actions {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-end;
+    }
+
+    .input-action-btn {
+        width: 36px;
+        height: 36px;
+        border: none;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 1rem;
+    }
+
+    .clear-history-btn {
+        background: #ff5252;
+        color: white;
+    }
+
+        .clear-history-btn:hover {
+            background: #ff1744;
+            transform: scale(1.05);
+        }
+
+    .clear-btn {
+        background: #e0e0e0;
+        color: #666;
+    }
+
+        .clear-btn:hover {
+            background: #d0d0d0;
+            transform: scale(1.05);
+        }
+
+    .send-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+
+        .send-btn:hover:not(.disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    .input-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0.5rem;
+    }
+
+    .input-hint {
+        font-size: 0.75rem;
+        color: #999;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+        .input-hint i {
+            color: #ffc107;
+        }
+
+    .chat-count {
+        font-size: 0.75rem;
+        color: #667eea;
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-weight: 600;
+    }
+
+    .chat-sidebar {
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        overflow-y: auto;
+    }
+
+    .sidebar-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header-custom {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        font-weight: 600;
+        font-size: 0.9375rem;
+    }
+
+    .card-body-custom {
+        padding: 1.25rem;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+    }
+
+        .info-item:not(:last-child) {
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .info-item > i {
+            margin-top: 0.25rem;
+            color: #667eea;
+            font-size: 1rem;
+        }
+
+    .info-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .info-label {
+        font-size: 0.75rem;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .session-id {
+        font-size: 0.8125rem;
+        background: #f5f5f5;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        display: inline-block;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+        .status-badge.success {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4CAF50;
+        }
+
+        .status-badge.pending {
+            background: rgba(255, 152, 0, 0.1);
+            color: #ff9800;
+        }
+
+    .token-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-radius: 12px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #667eea;
+    }
+
+    .tips-card .card-body-custom {
+        padding: 1rem;
+    }
+
+    .tip-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 8px;
+        font-size: 0.8125rem;
+        transition: all 0.2s ease;
+    }
+
+        .tip-item:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .tip-item i {
+            color: #667eea;
+            font-size: 0.875rem;
+        }
+
+    .dashboard-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        text-decoration: none;
+        color: #667eea;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+        .dashboard-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.3);
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+    .messages-container::-webkit-scrollbar,
+    .chat-sidebar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .messages-container::-webkit-scrollbar-track,
+    .chat-sidebar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb,
+    .chat-sidebar::-webkit-scrollbar-thumb {
+        background: #d0d0d0;
+        border-radius: 3px;
+    }
+
+        .messages-container::-webkit-scrollbar-thumb:hover,
+        .chat-sidebar::-webkit-scrollbar-thumb:hover {
+            background: #b0b0b0;
+        }
+
+    @@media (max-width: 1024px) {
+        .chat-sidebar {
+            display: none;
+        }
+
+        .chat-layout {
+            padding: 0.5rem;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .chat-header {
+            padding: 1rem;
+        }
+
+        .header-title {
+            font-size: 1.25rem;
+        }
+
+        .header-subtitle {
+            font-size: 0.75rem;
+        }
+
+        .feature-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .messages-container {
+            padding: 1rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+
+@code {
+    private JobModel jobModel = new();
+    private List<Models.Result> resumeresults = new();
+    private bool showLoader = false;
+    private bool isSubmitting = false;
+    private SearchAgent2 currentAgent = null;
+    private int lastRequestTokens = 0;
+    private bool isJsReady = false;
+
+    // Chat history to store all conversations
+    private List<ChatHistoryItem> chatHistory = new List<ChatHistoryItem>();
+
+    // URL Modal state
+    private bool showUrlModal = false;
+    private string currentUrl = string.Empty;
+    private string currentUrlTitle = string.Empty;
+    private string currentUrlSubtitle = string.Empty;
+    private Dictionary<string, UrlInfo> urlMapping = new Dictionary<string, UrlInfo>();
+
+    [Inject]
+    public IConfiguration _configuration { get; set; }
+
+    private string azureOpenAiEndpoint { get; set; } = string.Empty;
+    private string azureOpenAiApiKey { get; set; } = string.Empty;
+    private string chatDeploymentName { get; set; } = string.Empty;
+    private string embeddingDeploymentName { get; set; } = string.Empty;
+    private string searchEndpoint { get; set; } = string.Empty;
+    private string searchIndexName { get; set; } = string.Empty;
+    private string searchApiKey { get; set; } = string.Empty;
+    private string textAnalyticsEndpoint { get; set; } = string.Empty;
+    private string textAnalyticsApiKey { get; set; } = string.Empty;
+
+    private string sessionId = Guid.NewGuid().ToString();
+
+    protected override void OnInitialized()
+    {
+        showLoader = false;
+        azureOpenAiEndpoint = _configuration.GetSection("OpenAISettings")["AzureOpenAiEndpoint"];
+        azureOpenAiApiKey = _configuration.GetSection("OpenAISettings")["AzureOpenAiApiKey"];
+        chatDeploymentName = _configuration.GetSection("OpenAISettings")["ChatDeploymentName"];
+        embeddingDeploymentName = _configuration.GetSection("OpenAISettings")["EmbeddingDeploymentName"];
+        searchEndpoint = _configuration.GetSection("OpenAISettings")["SearchEndpoint"];
+        searchIndexName = _configuration.GetSection("OpenAISettings")["SearchIndexName"];
+        searchApiKey = _configuration.GetSection("OpenAISettings")["SearchApiKey"];
+        textAnalyticsEndpoint = _configuration.GetSection("AzureTextAnalytics")["Endpoint"];
+        textAnalyticsApiKey = _configuration.GetSection("AzureTextAnalytics")["ApiKey"];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !isJsReady)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", @"
+                    console.log('🚀 Initializing Blazor URL Modal...');
+
+                    window.registerBlazorInstance = function(dotnetHelper) {
+                        console.log('📝 Registering Blazor instance:', dotnetHelper);
+                        window.blazorUrlModalInstance = dotnetHelper;
+                        console.log('✅ Instance registered successfully');
+                        return true;
+                    };
+
+                    console.log('✅ Blazor URL Modal initialized');
+                ");
+                isJsReady = true;
+                Console.WriteLine("✅ JavaScript initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ JavaScript initialization error: {ex.Message}");
+            }
+        }
+    }
+
+    private bool HasEnoughTokens()
+    {
+        return TokenUsageService.GetRemainingTokensPerMinute() >= 500;
+    }
+
+    private int GetSecondsUntilReset()
+    {
+        return 60 - DateTime.UtcNow.Second;
+    }
+
+    private int GetSuccessRate(SearchAgent2.TokenSessionStats stats)
+    {
+        if (stats.RequestCount == 0) return 0;
+        return (int)((stats.SuccessfulRequests * 100.0) / stats.RequestCount);
+    }
+
+    private void OnInputChange(ChangeEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    private string ConvertUrlsToClickableLinks(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        urlMapping.Clear();
+        int urlCounter = 0;
+
+        Console.WriteLine($"🔍 Converting URLs in text (length: {text.Length})");
+
+        var anchorPattern = @"<a\s+(?:[^>]*?\s+)?href=[""']([^""']+)[""'][^>]*>(.*?)</a>";
+        text = Regex.Replace(text, anchorPattern, match =>
+        {
+            var url = match.Groups[1].Value;
+            var linkText = match.Groups[2].Value;
+            var urlKey = $"url-{urlCounter++}";
+
+            urlMapping[urlKey] = new UrlInfo
+            {
+                Url = url,
+                Title = GetTitleFromUrl(url),
+                Subtitle = url
+            };
+
+            linkText = Regex.Replace(linkText, @"<[^>]+>", "");
+            linkText = linkText.Replace("🔗", "").Replace("📎", "").Replace("__", "").Trim();
+
+            if (string.IsNullOrWhiteSpace(linkText) ||
+                linkText.Equals("View Source", StringComparison.OrdinalIgnoreCase) ||
+                linkText.Equals("View", StringComparison.OrdinalIgnoreCase) ||
+                linkText.Equals("Download", StringComparison.OrdinalIgnoreCase) ||
+                linkText.Equals("Open", StringComparison.OrdinalIgnoreCase))
+            {
+                linkText = "View Document";
+            }
+
+            Console.WriteLine($"📌 Anchor {urlKey}: {url} -> Button text: '{linkText}'");
+
+            return $"<button class='view-url-link' onclick='event.preventDefault(); if(window.blazorUrlModalInstance) {{ window.blazorUrlModalInstance.invokeMethodAsync(\"OpenUrlFromJs\", \"{urlKey}\"); }}'>🔗 {linkText}</button>";
+        }, RegexOptions.IgnoreCase);
+
+        var viewSourcePattern = @"(?<!<button[^>]*>[^<]*)(🔗|📎)\s*(?:__)?(?:View Source|View|Download|Open)(?:__)?(?![^<]*</button>)";
+        text = Regex.Replace(text, viewSourcePattern, match =>
+        {
+            var urlKey = $"url-{urlCounter++}";
+            Console.WriteLine($"📌 View Source {urlKey} (standalone pattern)");
+            return $"<button class='view-url-link' onclick='if(window.blazorUrlModalInstance) window.blazorUrlModalInstance.invokeMethodAsync(\"OpenUrlFromJs\", \"{urlKey}\")'>🔗 View Source</button>";
+        });
+
+        var urlPattern = @"(?<!href=[""'])(?<!href=)(?<!onclick=[""'][^""']*)(https?://[^\s<>""']+|blob:https?://[^\s<>""']+)(?![""'])(?![^<]*</button>)";
+        text = Regex.Replace(text, urlPattern, match =>
+        {
+            var url = match.Groups[0].Value;
+            var urlKey = $"url-{urlCounter++}";
+
+            urlMapping[urlKey] = new UrlInfo
+            {
+                Url = url,
+                Title = GetTitleFromUrl(url),
+                Subtitle = url
+            };
+
+            Console.WriteLine($"📌 Standalone URL {urlKey}: {url}");
+
+            return $"<button class='view-url-link' onclick='event.preventDefault(); if(window.blazorUrlModalInstance) {{ window.blazorUrlModalInstance.invokeMethodAsync(\"OpenUrlFromJs\", \"{urlKey}\"); }}'>🔗 View</button>";
+        });
+
+        Console.WriteLine($"✅ Total URLs mapped: {urlMapping.Count}");
+        Console.WriteLine($"🔑 Keys: {string.Join(", ", urlMapping.Keys)}");
+
+        return text;
+    }
+
+    private string GetTitleFromUrl(string url)
+    {
+        if (url.Contains(".pdf")) return "PDF Document";
+        if (url.Contains(".doc")) return "Word Document";
+        if (url.Contains(".xls")) return "Excel Document";
+        if (url.Contains("resume") || url.Contains("cv")) return "Resume/CV";
+        return "Document";
+    }
+
+    [JSInvokable("OpenUrlFromJs")]
+    public void OpenUrlFromJs(string urlKey)
+    {
+        Console.WriteLine("=================================");
+        Console.WriteLine($"🎯 OpenUrlFromJs called with key: {urlKey}");
+        Console.WriteLine($"📊 URL Mapping contains {urlMapping.Count} items");
+        Console.WriteLine($"🔑 Available keys: {string.Join(", ", urlMapping.Keys)}");
+
+        if (urlMapping.ContainsKey(urlKey))
+        {
+            var urlInfo = urlMapping[urlKey];
+            Console.WriteLine($"✅ Found URL: {urlInfo.Url}");
+
+            currentUrl = urlInfo.Url;
+            currentUrlTitle = urlInfo.Title;
+            currentUrlSubtitle = urlInfo.Subtitle;
+            showUrlModal = true;
+
+            Console.WriteLine($"✅ Modal state updated - showUrlModal: {showUrlModal}");
+            Console.WriteLine("=================================");
+            StateHasChanged();
+        }
+        else
+        {
+            Console.WriteLine($"❌ URL key '{urlKey}' not found in mapping!");
+            Console.WriteLine("=================================");
+        }
+    }
+
+    public void ShowUrlPopup(string url, string title = "", string subtitle = "")
+    {
+        currentUrl = url;
+        currentUrlTitle = string.IsNullOrEmpty(title) ? "Document Viewer" : title;
+        currentUrlSubtitle = string.IsNullOrEmpty(subtitle) ? url : subtitle;
+        showUrlModal = true;
+        StateHasChanged();
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (!HasEnoughTokens())
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Warning,
+                Summary = "Rate Limit",
+                Detail = "Insufficient tokens available. Please wait before submitting.",
+                Duration = 4000
+            });
+            return;
+        }
+
+        isSubmitting = true;
+        lastRequestTokens = 0;
+
+        if (isJsReady)
+        {
+            try
+            {
+                var dotNetRef = DotNetObjectReference.Create(this);
+                await JSRuntime.InvokeVoidAsync("registerBlazorInstance", dotNetRef);
+                Console.WriteLine("✅ Component instance registered in HandleSubmit");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to register instance: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("⚠️ JavaScript not ready yet!");
+        }
+
+        try
+        {
+            var input = jobModel.JobDescription;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Info,
+                    Summary = "Empty Input",
+                    Detail = "Please provide a job description.",
+                    Duration = 3000
+                });
+                return;
+            }
+
+            var tokensBefore = TokenUsageService.GetTokensUsedLastMinute();
+
+            currentAgent = new SearchAgent2(
+                azureOpenAiEndpoint,
+                azureOpenAiApiKey,
+                chatDeploymentName,
+                embeddingDeploymentName,
+                searchEndpoint,
+                searchIndexName,
+                searchApiKey,
+                sessionId,
+                textAnalyticsEndpoint,
+                textAnalyticsApiKey,
+                TokenUsageService
+            );
+
+            var startTime = DateTime.UtcNow;
+            string response = await currentAgent.ChatAsync(input);
+
+            // Add to chat history
+            chatHistory.Add(new ChatHistoryItem
+            {
+                UserQuery = input,
+                AiResponse = response,
+                Timestamp = DateTime.Now,
+                TokensUsed = 0
+            });
+
+            var duration = DateTime.UtcNow - startTime;
+            var tokensAfter = TokenUsageService.GetTokensUsedLastMinute();
+            lastRequestTokens = tokensAfter - tokensBefore;
+
+            // Update token count for last item
+            if (chatHistory.Count > 0)
+            {
+                chatHistory[chatHistory.Count - 1].TokensUsed = lastRequestTokens;
+            }
+
+            // Clear input
+            jobModel.JobDescription = string.Empty;
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Analysis Complete",
+                Detail = $"Processed in {duration.TotalSeconds:F1}s using {lastRequestTokens} tokens",
+                Duration = 4000
+            });
+        }
+        catch (Exception ex)
+        {
+            // Add error to history
+            chatHistory.Add(new ChatHistoryItem
+            {
+                UserQuery = jobModel.JobDescription,
+                AiResponse = $"❌ Error: {ex.Message}",
+                Timestamp = DateTime.Now,
+                TokensUsed = 0
+            });
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    // Export single conversation to CSV
+    void ExportSingleToCsv(ChatHistoryItem chat)
+    {
+        try
+        {
+            string csvPath = $"conversation_{chat.Timestamp:yyyyMMdd_HHmmss}.csv";
+            var sb = new StringBuilder();
+            sb.AppendLine("Timestamp,Role,Content");
+
+            string safeQuery = chat.UserQuery.Replace("\"", "\"\"");
+            string safeResponse = chat.AiResponse.Replace("\"", "\"\"");
+
+            sb.AppendLine($"\"{chat.Timestamp:yyyy-MM-dd HH:mm:ss}\",\"User\",\"{safeQuery}\"");
+            sb.AppendLine($"\"{chat.Timestamp.AddSeconds(5):yyyy-MM-dd HH:mm:ss}\",\"AI\",\"{safeResponse}\"");
+
+            File.WriteAllText(csvPath, sb.ToString(), Encoding.UTF8);
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Export Successful",
+                Detail = $"CSV saved to {csvPath}",
+                Duration = 4000
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Export Failed",
+                Detail = ex.Message,
+                Duration = 4000
+            });
+        }
+    }
+
+    // Export all conversations to CSV
+    void ExportAllToCsv()
+    {
+        try
+        {
+            string csvPath = $"all_conversations_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            var sb = new StringBuilder();
+            sb.AppendLine("Timestamp,Role,Content,Tokens");
+
+            foreach (var chat in chatHistory)
+            {
+                string safeQuery = chat.UserQuery.Replace("\"", "\"\"");
+                string safeResponse = chat.AiResponse.Replace("\"", "\"\"");
+
+                sb.AppendLine($"\"{chat.Timestamp:yyyy-MM-dd HH:mm:ss}\",\"User\",\"{safeQuery}\",\"\"");
+                sb.AppendLine($"\"{chat.Timestamp.AddSeconds(5):yyyy-MM-dd HH:mm:ss}\",\"AI\",\"{safeResponse}\",\"{chat.TokensUsed}\"");
+            }
+
+            File.WriteAllText(csvPath, sb.ToString(), Encoding.UTF8);
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Export Successful",
+                Detail = $"All conversations saved to {csvPath}",
+                Duration = 4000
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Export Failed",
+                Detail = ex.Message,
+                Duration = 4000
+            });
+        }
+    }
+
+    // Export single conversation to PDF
+    void ExportSingleToPdf(ChatHistoryItem chat)
+    {
+        try
+        {
+            string pdfPath = $"conversation_{chat.Timestamp:yyyyMMdd_HHmmss}.pdf";
+
+            Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+            PdfWriter.GetInstance(document, new FileStream(pdfPath, FileMode.Create));
+            document.Open();
+
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+            var roleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.BLUE);
+            var contentFont = FontFactory.GetFont(FontFactory.HELVETICA, 11);
+
+            document.Add(new Paragraph("Conversation Export", titleFont));
+            document.Add(new Paragraph($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n"));
+            document.Add(new Paragraph($"Session ID: {sessionId}", contentFont));
+            document.Add(new Paragraph($"Tokens Used: {chat.TokensUsed}\n\n", contentFont));
+
+            var userHeader = new Paragraph($"[{chat.Timestamp:yyyy-MM-dd HH:mm:ss}] User:", roleFont);
+            document.Add(userHeader);
+            document.Add(new Paragraph(chat.UserQuery + "\n\n", contentFont));
+
+            var aiHeader = new Paragraph($"[{chat.Timestamp.AddSeconds(5):yyyy-MM-dd HH:mm:ss}] AI:", roleFont);
+            document.Add(aiHeader);
+            document.Add(new Paragraph(chat.AiResponse + "\n\n", contentFont));
+
+            document.Close();
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Export Successful",
+                Detail = $"PDF saved to {pdfPath}",
+                Duration = 4000
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Export Failed",
+                Detail = ex.Message,
+                Duration = 4000
+            });
+        }
+    }
+
+    // Export all conversations to PDF
+    void ExportAllToPdf()
+    {
+        try
+        {
+            string pdfPath = $"all_conversations_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+
+            Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+            PdfWriter.GetInstance(document, new FileStream(pdfPath, FileMode.Create));
+            document.Open();
+
+            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+            var roleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.BLUE);
+            var contentFont = FontFactory.GetFont(FontFactory.HELVETICA, 11);
+
+            document.Add(new Paragraph("All Conversations Export", titleFont));
+            document.Add(new Paragraph($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n"));
+            document.Add(new Paragraph($"Session ID: {sessionId}", contentFont));
+            document.Add(new Paragraph($"Total Conversations: {chatHistory.Count}\n\n", contentFont));
+
+            foreach (var chat in chatHistory)
+            {
+                var userHeader = new Paragraph($"[{chat.Timestamp:yyyy-MM-dd HH:mm:ss}] User:", roleFont);
+                document.Add(userHeader);
+                document.Add(new Paragraph(chat.UserQuery + "\n\n", contentFont));
+
+                var aiHeader = new Paragraph($"[{chat.Timestamp.AddSeconds(5):yyyy-MM-dd HH:mm:ss}] AI:", roleFont);
+                document.Add(aiHeader);
+                document.Add(new Paragraph(chat.AiResponse + "\n\n", contentFont));
+
+                document.Add(new Paragraph("─────────────────────────────────────────\n\n", contentFont));
+            }
+
+            document.Close();
+
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Export Successful",
+                Detail = $"All conversations saved to {pdfPath}",
+                Duration = 4000
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Export Failed",
+                Detail = ex.Message,
+                Duration = 4000
+            });
+        }
+    }
+
+    async Task CopyResponseSingle(string response)
+    {
+        try
+        {
+            if (isJsReady)
+            {
+                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", response);
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Copied",
+                    Detail = "Response copied to clipboard",
+                    Duration = 2000
+                });
+            }
+        }
+        catch
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Info,
+                Summary = "Copy",
+                Detail = "Please select and copy manually",
+                Duration = 2000
+            });
+        }
+    }
+
+    void ClearTextArea()
+    {
+        jobModel.JobDescription = string.Empty;
+        StateHasChanged();
+    }
+
+    void ClearHistory()
+    {
+        chatHistory.Clear();
+        lastRequestTokens = 0;
+        urlMapping.Clear();
+
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Info,
+            Summary = "History Cleared",
+            Detail = "All conversation history has been cleared",
+            Duration = 2000
+        });
+
+        StateHasChanged();
+    }
+
+    // Helper class for chat history
+    private class ChatHistoryItem
+    {
+        public string UserQuery { get; set; }
+        public string AiResponse { get; set; }
+        public DateTime Timestamp { get; set; }
+        public int TokensUsed { get; set; }
+    }
+
+    // Helper class for URL info
+    private class UrlInfo
+    {
+        public string Url { get; set; }
+        public string Title { get; set; }
+        public string Subtitle { get; set; }
+    }
+}
