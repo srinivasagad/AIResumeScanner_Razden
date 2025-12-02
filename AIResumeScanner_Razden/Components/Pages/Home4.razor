@@ -374,7 +374,7 @@ ShowFullscreenButton="true" />
             </div> *@
 
             <!-- Quick Actions -->
-            @if (chatHistory.Count > 0)
+           @*  @if (chatHistory.Count > 0)
             {
                 <div class="sidebar-card">
                     <div class="card-header-custom">
@@ -392,7 +392,7 @@ ShowFullscreenButton="true" />
                         </button>
                     </div>
                 </div>
-            }
+            } *@
 
             <!-- Quick Tips -->
            @*  <div class="sidebar-card tips-card">
@@ -649,6 +649,7 @@ ShowFullscreenButton="true" />
         width: 150px;
         height: 150px;
         margin-bottom: 2rem;
+
     }
 
     .floating-icon {
@@ -664,7 +665,7 @@ ShowFullscreenButton="true" />
         align-items: center;
         justify-content: center;
         box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-        animation: float 3s ease-in-out infinite;
+       @*  animation: float 3s ease-in-out infinite; *@
         z-index: 2;
     }
 
