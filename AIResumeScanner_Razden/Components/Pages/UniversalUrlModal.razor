@@ -1,0 +1,577 @@
+﻿@page "/UniversalUrlModal"
+
+@if (IsVisible)
+{
+    <div class="url-modal-overlay @(IsVisible ? "show" : "")" @onclick="Close">
+        <div class="url-modal-container @GetSizeClass()" @onclick:stopPropagation="true">
+            <!-- Modal Header -->
+            <div class="url-modal-header">
+                <div class="url-modal-title-section">
+                    <div class="url-modal-icon">
+                        <i class="@GetIconClass()"></i>
+                    </div>
+                    <div>
+                        <h3 class="url-modal-title">@(Title ?? "Document Viewer")</h3>
+                        <p class="url-modal-subtitle">@(Subtitle ?? Url)</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    @if (ShowFullscreenButton)
+                    {
+                        <button class="header-action-btn" @onclick="ToggleFullscreen" title="@(isFullscreen ? "Exit Fullscreen" : "Fullscreen")">
+                            <i class="fas @(isFullscreen ? "fa-compress" : "fa-expand")"></i>
+                        </button>
+                    }
+                    <button class="header-action-btn" @onclick="Close" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="url-modal-body">
+                @if (IsLoading)
+                {
+                    <div class="url-loading-container">
+                        <div class="url-spinner"></div>
+                        <p>Loading content...</p>
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="url-error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <h4>Unable to Load Content</h4>
+                            <p>@ErrorMessage</p>
+                        </div>
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(Url))
+                {
+                    popupUrl = $"https://docs.google.com/gview?embedded=true&url={Uri.EscapeDataString(Url)}";
+                    <div class="url-viewer-container">
+                        <iframe src="@popupUrl"
+                                class="url-iframe"
+                                title="@Title"
+                                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                                loading="lazy" width="100%" height="600px"></iframe>
+                       
+                    </div>
+                }
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="url-modal-footer">
+                <div class="url-info">
+                    <i class="fas fa-link"></i>
+                    <span class="url-text" title="@Url">@GetShortUrl()</span>
+                </div>
+                <div class="url-footer-actions">
+                    <button class="url-footer-btn secondary" @onclick="CopyUrl" title="Copy URL">
+                        <i class="fas fa-copy"></i>
+                        <span>Copy Link</span>
+                    </button>
+                    <button class="url-footer-btn primary" @onclick="OpenInNewTab" title="Open in New Tab">
+                        <i class="fas fa-external-link-alt"></i>
+                        <span>Open in New Tab</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Modal Overlay */
+    .url-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        opacity: 0;
+        animation: urlFadeIn 0.3s ease-out forwards;
+        padding: 1rem;
+    }
+
+    @@keyframes urlFadeIn {
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* Modal Container */
+    .url-modal-container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        animation: urlSlideUp 0.3s ease-out;
+        overflow: hidden;
+        max-height: 90vh;
+    }
+
+        .url-modal-container.size-small {
+            width: 600px;
+            max-width: 90vw;
+        }
+
+        .url-modal-container.size-medium {
+            width: 900px;
+            max-width: 90vw;
+        }
+
+        .url-modal-container.size-large {
+            width: 1200px;
+            max-width: 95vw;
+        }
+
+        .url-modal-container.size-fullscreen {
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            border-radius: 0;
+        }
+
+    @@keyframes urlSlideUp {
+        from {
+            transform: translateY(50px) scale(0.95);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+    }
+
+    /* Modal Header */
+    .url-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .url-modal-title-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .url-modal-icon {
+        width: 45px;
+        height: 45px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .url-modal-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .url-modal-subtitle {
+        font-size: 0.8125rem;
+        opacity: 0.9;
+        margin: 0.25rem 0 0 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .header-action-btn {
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+        .header-action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+    /* Modal Body */
+    .url-modal-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #f8f9fa;
+    }
+
+    .url-viewer-container {
+        flex: 1;
+        display: flex;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .url-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+    }
+
+    /* Loading State */
+    .url-loading-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        padding: 4rem 2rem;
+    }
+
+    .url-spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(102, 126, 234, 0.2);
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: urlSpin 1s linear infinite;
+    }
+
+    @@keyframes urlSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .url-loading-container p {
+        color: #666;
+        font-size: 1rem;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    /* Error State */
+    .url-error-message {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+
+        .url-error-message i {
+            font-size: 3rem;
+            color: #f44336;
+        }
+
+        .url-error-message h4 {
+            font-size: 1.25rem;
+            color: #1a1a1a;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .url-error-message p {
+            color: #666;
+            margin: 0;
+            font-size: 0.9375rem;
+        }
+
+    /* Modal Footer */
+    .url-modal-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .url-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+        min-width: 0;
+    }
+
+        .url-info i {
+            color: #667eea;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+    .url-text {
+        font-size: 0.8125rem;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .url-footer-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .url-footer-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        white-space: nowrap;
+    }
+
+        .url-footer-btn.primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+            .url-footer-btn.primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            }
+
+        .url-footer-btn.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+            .url-footer-btn.secondary:hover {
+                background: #667eea;
+                color: white;
+                transform: translateY(-2px);
+            }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .url-modal-container {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+        }
+
+        .url-modal-header {
+            padding: 1rem;
+        }
+
+        .url-modal-title {
+            font-size: 1.125rem;
+        }
+
+        .url-modal-footer {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .url-info {
+            justify-content: center;
+        }
+
+        .url-footer-actions {
+            width: 100%;
+        }
+
+        .url-footer-btn {
+            flex: 1;
+            justify-content: center;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter]
+    public string Url { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Subtitle { get; set; } = string.Empty;
+
+    [Parameter]
+    public string IconClass { get; set; } = "fas fa-file-alt";
+
+    [Parameter]
+    public string Size { get; set; } = "large"; // small, medium, large, fullscreen
+
+    [Parameter]
+    public bool ShowFullscreenButton { get; set; } = true;
+
+    [Inject]
+    public IJSRuntime JSRuntime { get; set; }
+
+    [Inject]
+    public NotificationService NotificationService { get; set; }
+
+    private bool IsLoading { get; set; } = false;
+    private string ErrorMessage { get; set; } = string.Empty;
+    private bool isFullscreen { get; set; } = false;
+    private string popupUrl = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible && !string.IsNullOrEmpty(Url))
+        {
+            IsLoading = true;
+            ErrorMessage = string.Empty;
+            StateHasChanged();
+
+            // Simulate loading (in real scenario, iframe onload would handle this)
+            Task.Delay(500).ContinueWith(_ =>
+            {
+                IsLoading = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+    }
+
+    private async Task Close()
+    {
+        IsVisible = false;
+        isFullscreen = false;
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+
+    private void ToggleFullscreen()
+    {
+        isFullscreen = !isFullscreen;
+        StateHasChanged();
+    }
+
+    private string GetSizeClass()
+    {
+        if (isFullscreen) return "size-fullscreen";
+        return $"size-{Size}";
+    }
+
+    private string GetIconClass()
+    {
+        if (!string.IsNullOrEmpty(IconClass))
+            return IconClass;
+
+        // Auto-detect icon based on URL
+        var url = Url?.ToLower() ?? "";
+        if (url.Contains(".pdf")) return "fas fa-file-pdf";
+        if (url.Contains(".doc")) return "fas fa-file-word";
+        if (url.Contains(".xls")) return "fas fa-file-excel";
+        if (url.Contains(".jpg") || url.Contains(".png") || url.Contains(".gif")) return "fas fa-image";
+        if (url.Contains("youtube.com") || url.Contains("vimeo.com")) return "fas fa-video";
+        if (url.Contains("github.com")) return "fab fa-github";
+
+        return "fas fa-file-alt";
+    }
+
+    private string GetShortUrl()
+    {
+        if (string.IsNullOrEmpty(Url))
+            return "";
+
+        try
+        {
+            var uri = new Uri(Url);
+            var shortUrl = uri.Host + uri.PathAndQuery;
+            return shortUrl.Length > 60 ? shortUrl.Substring(0, 57) + "..." : shortUrl;
+        }
+        catch
+        {
+            return Url.Length > 60 ? Url.Substring(0, 57) + "..." : Url;
+        }
+    }
+
+    private async Task OpenInNewTab()
+    {
+        if (!string.IsNullOrEmpty(Url))
+        {
+            await JSRuntime.InvokeVoidAsync("open", Url, "_blank");
+        }
+    }
+
+    private async Task CopyUrl()
+    {
+        if (!string.IsNullOrEmpty(Url))
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Url);
+
+                NotificationService?.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Link Copied",
+                    Detail = "URL copied to clipboard",
+                    Duration = 2000
+                });
+            }
+            catch
+            {
+                NotificationService?.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Warning,
+                    Summary = "Copy Failed",
+                    Detail = "Please copy the URL manually",
+                    Duration = 2000
+                });
+            }
+        }
+    }
+}
