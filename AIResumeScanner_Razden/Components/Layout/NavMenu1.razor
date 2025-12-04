@@ -1,0 +1,483 @@
+﻿<div class="top-row navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">
+            <span class="brand-icon">🧠</span>
+            <span class="brand-text">AI Resume Scanner</span>
+        </a>
+        <button class="navbar-toggler" type="button" aria-label="Toggle navigation">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+    </div>
+</div>
+
+<div class="nav-scrollable">
+    <div class="nav-overlay"></div>
+    <nav class="flex-column">
+        <div class="nav-item px-3" style="--delay: 0.1s">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                <span class="nav-icon">📋</span>
+                <span class="nav-text">JD Scanner</span>
+                <span class="nav-glow"></span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3" style="--delay: 0.2s">
+            <NavLink class="nav-link" href="/fileupload">
+                <span class="nav-icon">📤</span>
+                <span class="nav-text">Upload Resumes</span>
+                <span class="nav-glow"></span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3" style="--delay: 0.3s">
+            <NavLink class="nav-link" href="/dashboard">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Dashboard</span>
+                <span class="nav-glow"></span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3" style="--delay: 0.4s">
+            <NavLink class="nav-link" href="/token-history">
+                <span class="nav-icon">🕐</span>
+                <span class="nav-text">Token History</span>
+                <span class="nav-glow"></span>
+            </NavLink>
+        </div>
+
+        <div class="menu-decoration">
+            <div class="decoration-circle"></div>
+            <div class="decoration-circle"></div>
+            <div class="decoration-circle"></div>
+        </div>
+    </nav>
+</div>
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --dark-bg: #0f0f23;
+        --darker-bg: #060610;
+        --text-color: #e0e0e0;
+        --glow-color: rgba(102, 126, 234, 0.5);
+    }
+
+    /* Navbar Styling */
+    .top-row {
+        background: var(--primary-gradient) !important;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .top-row::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+    @@keyframes rotate {
+        from
+
+    {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 1.5rem;
+        position: relative;
+        z-index: 2;
+        text-decoration: none;
+        color: white !important;
+    }
+
+    .brand-icon {
+        font-size: 2rem;
+        animation: bounce 2s ease-in-out infinite;
+    }
+
+    @@keyframes bounce {
+        0%, 100%
+
+    {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    }
+
+    .brand-text {
+        background: linear-gradient(90deg, #fff, #f0f0f0, #fff);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shimmer 3s ease-in-out infinite;
+        font-size: 1.1rem; /* Added explicit smaller size */
+        letter-spacing: 0.5px;
+    }
+
+    @@keyframes shimmer {
+        0%, 100%
+
+    {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    }
+
+    /* Hamburger Menu */
+    .navbar-toggler {
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 10px;
+        cursor: pointer;
+        border-radius: 12px;
+        position: relative;
+        z-index: 2;
+        transition: all 0.3s ease;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .navbar-toggler:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+    .hamburger-line {
+        width: 25px;
+        height: 3px;
+        background: white;
+        border-radius: 3px;
+        transition: all 0.3s ease;
+    }
+
+    .navbar-toggler.active .hamburger-line:nth-child(1) {
+        transform: rotate(45deg) translateY(9px);
+    }
+
+    .navbar-toggler.active .hamburger-line:nth-child(2) {
+        opacity: 0;
+    }
+
+    .navbar-toggler.active .hamburger-line:nth-child(3) {
+        transform: rotate(-45deg) translateY(-9px);
+    }
+
+    /* Navigation Menu - REDUCED WIDTH */
+    .nav-scrollable {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 150px; /* Reduced from 320px */
+        height: 100vh;
+        background: var(--dark-bg);
+        transition: left 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        z-index: 1000;
+        overflow: hidden;
+    }
+
+        .nav-scrollable.show {
+            left: 0;
+            box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+    .nav-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: -1;
+    }
+
+    .nav-scrollable.show .nav-overlay {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    nav {
+        padding-top: 80px; /* Reduced from 100px */
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Navigation Items */
+    .nav-item {
+        margin: 8px 0; /* Reduced from 10px */
+        opacity: 0;
+        transform: translateX(-50px);
+        transition: all 0.3s ease;
+    }
+
+    .nav-scrollable.show .nav-item {
+        opacity: 1;
+        transform: translateX(0);
+        transition-delay: var(--delay);
+    }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 12px; /* Reduced from 15px */
+        padding: 14px 15px; /* Reduced from 18px 25px */
+        color: var(--text-color) !important;
+        text-decoration: none;
+        border-radius: 12px; /* Reduced from 15px */
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s ease;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--primary-gradient);
+            transition: left 0.4s ease;
+            z-index: -1;
+        }
+
+        .nav-link:hover::before,
+        .nav-link.active::before {
+            left: 0;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            transform: translateX(8px); /* Reduced from 10px */
+            box-shadow: 0 10px 30px var(--glow-color);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+    .nav-icon {
+        font-size: 1.5rem; /* Reduced from 1.8rem */
+        transition: all 0.3s ease;
+        filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
+        flex-shrink: 0;
+    }
+
+    .nav-link:hover .nav-icon {
+        transform: scale(1.2) rotate(10deg);
+        filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
+    }
+
+    .nav-text {
+        font-size: 0.85rem; /* Reduced from 1.1rem */
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+
+    .nav-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%);
+        transform: translate(-50%, -50%);
+        opacity: 0;
+        transition: all 0.5s ease;
+    }
+
+    .nav-link:hover .nav-glow {
+        width: 250px; /* Reduced from 300px */
+        height: 250px;
+        opacity: 0.2;
+    }
+
+    /* Decorative Elements */
+    .menu-decoration {
+        position: absolute;
+        bottom: 40px; /* Reduced from 50px */
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px; /* Reduced from 15px */
+    }
+
+    .decoration-circle {
+        width: 10px; /* Reduced from 12px */
+        height: 10px;
+        border-radius: 50%;
+        background: var(--primary-gradient);
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+        .decoration-circle:nth-child(2) {
+            animation-delay: 0.3s;
+            background: var(--secondary-gradient);
+        }
+
+        .decoration-circle:nth-child(3) {
+            animation-delay: 0.6s;
+            background: var(--accent-gradient);
+        }
+
+    @@keyframes pulse {
+        0%, 100%
+
+    {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.5);
+        opacity: 0.5;
+    }
+
+    }
+
+    /* Responsive Design */
+    @@media (min-width: 769px) {
+        .navbar-toggler
+
+    {
+        display: none;
+    }
+
+    .nav-scrollable {
+        position: static;
+        width: 100%;
+        height: auto;
+        left: 0;
+    }
+
+    .nav-item {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    nav {
+        padding-top: 20px;
+    }
+
+    .nav-overlay {
+        display: none;
+    }
+
+    .menu-decoration {
+        display: none;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .nav-scrollable
+
+    {
+        display: block;
+    }
+
+    }
+
+    /* Scrollbar Styling */
+    .nav-scrollable::-webkit-scrollbar {
+        width: 6px; /* Reduced from 8px */
+    }
+
+    .nav-scrollable::-webkit-scrollbar-track {
+        background: var(--darker-bg);
+    }
+
+    .nav-scrollable::-webkit-scrollbar-thumb {
+        background: var(--primary-gradient);
+        border-radius: 10px;
+    }
+</style>
+
+<script>
+    const toggler = document.querySelector('.navbar-toggler');
+    const navMenu = document.querySelector('.nav-scrollable');
+    const navOverlay = document.querySelector('.nav-overlay');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    // Toggle menu
+    toggler.addEventListener('click', function(e) {
+        e.stopPropagation();
+        navMenu.classList.toggle('show');
+        toggler.classList.toggle('active');
+    });
+
+    // Close menu when clicking overlay
+    navOverlay.addEventListener('click', function() {
+        navMenu.classList.remove('show');
+        toggler.classList.remove('active');
+    });
+
+    // Close menu when clicking on a nav link
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                navMenu.classList.remove('show');
+                toggler.classList.remove('active');
+            }
+        });
+    });
+
+    // Close menu on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && navMenu.classList.contains('show')) {
+            navMenu.classList.remove('show');
+            toggler.classList.remove('active');
+        }
+    });
+
+    // Prevent body scroll when menu is open
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (navMenu.classList.contains('show')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        });
+    });
+
+    observer.observe(navMenu, { attributes: true, attributeFilter: ['class'] });
+</script>

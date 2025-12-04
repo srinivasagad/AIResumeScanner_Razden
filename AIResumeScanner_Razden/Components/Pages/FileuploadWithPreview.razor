@@ -17,7 +17,11 @@
 
 <PageTitle>File Upload</PageTitle>
 
-<OverlaySpinner IsLoading=@showLoader></OverlaySpinner>
+<LoadingOverlay IsLoading="@showLoader" FullPage="true">
+    
+</LoadingOverlay>
+
+@* <OverlaySpinner IsLoading=@showLoader></OverlaySpinner> *@
 
 @if (myJsonFiles == null || myJsonFiles?.FirstOrDefault()?.FileName == null)
 {

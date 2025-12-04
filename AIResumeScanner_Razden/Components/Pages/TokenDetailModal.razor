@@ -1,35 +1,34 @@
-﻿
-@using AIResumeScanner_Razden.Services
+﻿@using AIResumeScanner_Razden.Services
 
 <div class="modal fade @(IsVisible ? "show d-block" : "")" tabindex="-1" style="@(IsVisible ? "background-color: rgba(0,0,0,0.5);" : "")">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="max-height: 80vh;">
             <div class="modal-header bg-primary text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <h5 class="modal-title" >🔍 Token Usage Details</h5>
+                <h5 class="modal-title">🔍 Token Usage Details</h5>
                 <button type="button" class="btn-close btn-close-white" @onclick="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 55vh; overflow-y: auto;">
                 @if (Record != null)
                 {
-                    <div class="row mb-3">
+                    <div class="row mb-2">
                         <div class="col-md-6">
                             <strong>Request ID:</strong>
-                            <div><code>@Record.Id</code></div>
+                            <div><code style="font-size: 0.85rem;">@Record.Id</code></div>
                         </div>
                         <div class="col-md-6">
                             <strong>Session ID:</strong>
-                            <div><code>@Record.SessionId</code></div>
+                            <div><code style="font-size: 0.85rem;">@Record.SessionId</code></div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row mb-2">
                         <div class="col-md-4">
                             <strong>Timestamp:</strong>
-                            <div>@Record.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</div>
+                            <div style="font-size: 0.9rem;">@Record.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</div>
                         </div>
                         <div class="col-md-4">
                             <strong>Duration:</strong>
-                            <div>@Record.DurationSeconds.ToString("F2") seconds</div>
+                            <div style="font-size: 0.9rem;">@Record.DurationSeconds.ToString("F2") seconds</div>
                         </div>
                         <div class="col-md-4">
                             <strong>Status:</strong>
@@ -46,40 +45,40 @@
                         </div>
                     </div>
 
-                    <hr />
+                    <hr class="my-2" />
 
-                    <h6 class="mb-3">📊 Token Breakdown</h6>
-                    <div class="row mb-3">
+                    <h6 class="mb-2">📊 Token Breakdown</h6>
+                    <div class="row mb-2">
                         <div class="col-md-4">
                             <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h6 class="text-muted">Prompt Tokens</h6>
-                                    <h3 class="text-info">@Record.PromptTokens</h3>
-                                    <small>Input tokens</small>
+                                <div class="card-body text-center py-2">
+                                    <h6 class="text-muted mb-1" style="font-size: 0.85rem;">Prompt Tokens</h6>
+                                    <h4 class="text-info mb-1">@Record.PromptTokens</h4>
+                                    <small style="font-size: 0.75rem;">Input tokens</small>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h6 class="text-muted">Completion Tokens</h6>
-                                    <h3 class="text-success">@Record.CompletionTokens</h3>
-                                    <small>Output tokens</small>
+                                <div class="card-body text-center py-2">
+                                    <h6 class="text-muted mb-1" style="font-size: 0.85rem;">Completion Tokens</h6>
+                                    <h4 class="text-success mb-1">@Record.CompletionTokens</h4>
+                                    <small style="font-size: 0.75rem;">Output tokens</small>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h6 class="text-muted">Total Tokens</h6>
-                                    <h3 class="text-primary">@Record.TotalTokens</h3>
-                                    <small>Combined</small>
+                                <div class="card-body text-center py-2">
+                                    <h6 class="text-muted mb-1" style="font-size: 0.85rem;">Total Tokens</h6>
+                                    <h4 class="text-primary mb-1">@Record.TotalTokens</h4>
+                                    <small style="font-size: 0.75rem;">Combined</small>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row mb-2">
                         <div class="col-md-6">
                             <strong>Model:</strong>
                             <div><span class="badge bg-secondary">@Record.Model</span></div>
@@ -90,41 +89,41 @@
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row mb-2">
                         <div class="col-md-12">
                             <strong>Estimated Cost:</strong>
-                            <div class="h4 text-success">$@Record.EstimatedCost.ToString("F4")</div>
+                            <div class="h5 text-success mb-0">$@Record.EstimatedCost.ToString("F4")</div>
                         </div>
                     </div>
 
-                    <hr />
+                    <hr class="my-2" />
 
-                    <h6 class="mb-3">💬 User Query</h6>
-                    <div class="card bg-light mb-3">
-                        <div class="card-body">
-                            <pre style="white-space: pre-wrap; font-size: 0.9rem; margin: 0;">@(Record.UserQuery ?? "N/A")</pre>
+                    <h6 class="mb-2">💬 User Query</h6>
+                    <div class="card bg-light mb-2">
+                        <div class="card-body py-2">
+                            <pre style="white-space: pre-wrap; font-size: 0.85rem; margin: 0; max-height: 100px; overflow-y: auto;">@(Record.UserQuery ?? "N/A")</pre>
                         </div>
                     </div>
 
                     @if (!Record.Success && !string.IsNullOrEmpty(Record.ErrorMessage))
                     {
-                        <hr />
-                        <h6 class="mb-3 text-danger">⚠️ Error Message</h6>
-                        <div class="alert alert-danger">
-                            <pre style="white-space: pre-wrap; margin: 0;">@Record.ErrorMessage</pre>
+                        <hr class="my-2" />
+                        <h6 class="mb-2 text-danger">⚠️ Error Message</h6>
+                        <div class="alert alert-danger py-2 mb-2">
+                            <pre style="white-space: pre-wrap; margin: 0; font-size: 0.85rem;">@Record.ErrorMessage</pre>
                         </div>
                     }
 
-                    <hr />
+                    <hr class="my-2" />
 
-                    <h6 class="mb-3">📈 Token Distribution</h6>
+                    <h6 class="mb-2">📈 Token Distribution</h6>
                     <div class="mb-2">
                         <div class="d-flex justify-content-between mb-1">
-                            <span>Prompt (@GetPercentage(Record.PromptTokens, Record.TotalTokens)%)</span>
-                            <span>@Record.PromptTokens tokens</span>
+                            <span style="font-size: 0.9rem;">Prompt (@GetPercentage(Record.PromptTokens, Record.TotalTokens)%)</span>
+                            <span style="font-size: 0.9rem;">@Record.PromptTokens tokens</span>
                         </div>
-                        <div class="progress" style="height: 25px;">
-                            <div class="progress-bar bg-info" style="width: @GetPercentage(Record.PromptTokens, Record.TotalTokens)%">
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-info" style="width: @GetPercentage(Record.PromptTokens, Record.TotalTokens)%; font-size: 0.85rem;">
                                 @Record.PromptTokens
                             </div>
                         </div>
@@ -132,11 +131,11 @@
 
                     <div class="mb-2">
                         <div class="d-flex justify-content-between mb-1">
-                            <span>Completion (@GetPercentage(Record.CompletionTokens, Record.TotalTokens)%)</span>
-                            <span>@Record.CompletionTokens tokens</span>
+                            <span style="font-size: 0.9rem;">Completion (@GetPercentage(Record.CompletionTokens, Record.TotalTokens)%)</span>
+                            <span style="font-size: 0.9rem;">@Record.CompletionTokens tokens</span>
                         </div>
-                        <div class="progress" style="height: 25px;">
-                            <div class="progress-bar bg-success" style="width: @GetPercentage(Record.CompletionTokens, Record.TotalTokens)%">
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" style="width: @GetPercentage(Record.CompletionTokens, Record.TotalTokens)%; font-size: 0.85rem;">
                                 @Record.CompletionTokens
                             </div>
                         </div>
@@ -147,12 +146,37 @@
                     <p class="text-muted">No record selected</p>
                 }
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" @onclick="Close">Close</button>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="Close">Close</button>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .modal-content {
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+</style>
 
 @code {
     [Parameter]
