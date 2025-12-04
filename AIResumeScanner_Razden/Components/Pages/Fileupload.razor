@@ -1,0 +1,1207 @@
+﻿@page "/fileupload"
+@using System;
+@using System.IO;
+@using Microsoft.AspNetCore.Components.Forms
+@inject IWebHostEnvironment Environment
+@using System.Text;
+@using iTextSharp.text.pdf;
+@using iTextSharp.text.pdf.parser;
+@using DocumentFormat.OpenXml.Packaging;
+@using DocumentFormat.OpenXml.Wordprocessing;
+@using Newtonsoft.Json;
+@using Azure.Storage.Blobs;
+@inject IJSRuntime JSRuntime;
+@inject ResumeValidationService ValidationService;
+@inject ProfileValidationService ProfileValidationService;
+
+<PageTitle>File Upload</PageTitle>
+
+<LoadingOverlay IsLoading="@showLoader" FullPage="true" />
+
+<div class="upload-page-container">
+    @if (myJsonFiles == null || myJsonFiles?.FirstOrDefault()?.FileName == null)
+    {
+        <div class="upload-section">
+            <div class="upload-header">
+                <div class="upload-icon-wrapper">
+                    <svg class="upload-main-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                </div>
+                <h2 class="upload-title">Upload Your Profile</h2>
+                <p class="upload-subtitle">Select PDF or Word documents to get started</p>
+            </div>
+
+            <div class="drop-zone" @ondragover="HandleDragOver" @ondragleave="HandleDragLeave" @ondrop="HandleDrop">
+                <div class="drop-zone-content">
+                    <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div class="drop-text">
+                        <span class="drop-primary">Click to upload</span>
+                        <span class="drop-secondary">or drag and drop</span>
+                    </div>
+                    <p class="drop-hint">PDF, DOC, DOCX up to 20MB</p>
+                    
+                    <InputFile 
+                        id="fileInput" 
+                        @key="fileInputKey" 
+                        OnChange="OnFileSelected" 
+                        multiple 
+                        class="file-input"
+                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                </div>
+            </div>
+
+            <div class="upload-features">
+                <div class="feature-item">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span>Secure Upload</span>
+                </div>
+                <div class="feature-item">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>Fast Processing</span>
+                </div>
+                <div class="feature-item">
+                    <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Auto Validation</span>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (myJsonFiles != null && myJsonFiles.FirstOrDefault()?.FileName != null)
+    {
+        <div class="preview-section animate-in">
+            <div class="preview-header">
+                <h3 class="preview-title">
+                    <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Profile Preview
+                </h3>
+            </div>
+            
+            <JsonViewer JsonFiles="@myJsonFiles" />
+            
+            <div class="action-buttons">
+                <button type="button" class="btn btn-secondary" @onclick="GoBack" disabled="@isUploading">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary" @onclick="UploadFiles" disabled="@isUploading">
+                    @if (isUploading)
+                    {
+                        <div class="spinner"></div>
+                        <span>Uploading...</span>
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Submit</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@* Success/Error Popup *@
+@if (showPopup)
+{
+    <div class="modal-overlay" @onclick="ClosePopup">
+        <div class="modal-content @(isUploadSuccess ? "success" : "error")" @onclick:stopPropagation="true">
+            <div class="modal-icon-wrapper">
+                @if (isUploadSuccess)
+                {
+                    <svg class="modal-icon success-icon" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                        <path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                }
+                else
+                {
+                    <svg class="modal-icon error-icon" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                }
+            </div>
+            
+            <h3 class="modal-title">@(isUploadSuccess ? "Success!" : "Error")</h3>
+            <p class="modal-message">@popupMessage</p>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" @onclick="ClosePopup">
+                    Close
+                </button>
+                @if (isUploadSuccess)
+                {
+                    <button class="btn btn-primary" @onclick="NavigateToJDSearch">
+                        Go to JD Search
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@* Validation Popup *@
+@if (showDocValidationPopup)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="validation-modal @validationModalType" @onclick:stopPropagation="true">
+            <div class="validation-header">
+                <div class="validation-header-content">
+                    @if (validationModalType == "success")
+                    {
+                        <svg class="validation-header-icon" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <h3>Validation Successful</h3>
+                    }
+                    else
+                    {
+                        <svg class="validation-header-icon" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 8v4m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <h3>Validation Failed</h3>
+                    }
+                </div>
+                <button class="close-button" @onclick="CloseModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="validation-body">
+                <div class="file-name">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    @currentValidationFileName
+                </div>
+                
+                @* <p class="validation-message">@validationMessage</p> *@
+                
+                @if (!string.IsNullOrEmpty(validationDetails))
+                {
+                    <div class="validation-details @validationModalType">
+                        <div class="details-header">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 16v-4m0-4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <strong>Details</strong>
+                        </div>
+                        
+                        <div class="details-content">
+                            @if (!string.IsNullOrEmpty(documentType))
+                            {
+                                <div class="detail-row">
+                                    <span class="detail-label">Document Type:</span>
+                                    <span class="detail-value">@documentType</span>
+                                </div>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(validationConfidence))
+                            {
+                                <div class="detail-row">
+                                    <span class="detail-label">Confidence:</span>
+                                    <span class="detail-value">@validationConfidence%</span>
+                                </div>
+                            }
+                            
+                            
+                            
+                            @if (!string.IsNullOrEmpty(validationReason))
+                            {
+                                <div class="detail-row full-width">
+                                    <span class="detail-label">Reason:</span>
+                                    <p class="reason-text">@validationReason</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            
+            <div class="validation-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* ===== Global Styles ===== */
+    * {
+        box-sizing: border-box;
+    }
+
+    .upload-page-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .upload-page-container::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: backgroundMove 20s linear infinite;
+            opacity: 0.3;
+        }
+
+    @@keyframes backgroundMove {
+        0% {
+            transform: translate(0, 0);
+        }
+
+        100% {
+            transform: translate(50px, 50px);
+        }
+    }
+
+    /* ===== Upload Section ===== */
+    .upload-section {
+        background: white;
+        border-radius: 24px;
+        padding: 3rem;
+        max-width: 700px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        position: relative;
+        z-index: 1;
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .upload-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .upload-icon-wrapper {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        margin-bottom: 1.5rem;
+        animation: iconFloat 3s ease-in-out infinite;
+    }
+
+    @@keyframes iconFloat {
+        0%, 100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .upload-main-icon {
+        width: 40px;
+        height: 40px;
+        color: white;
+    }
+
+    .upload-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 0.5rem 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .upload-subtitle {
+        font-size: 1rem;
+        color: #718096;
+        margin: 0;
+    }
+
+    /* ===== Drop Zone ===== */
+    .drop-zone {
+        border: 2px dashed #cbd5e0;
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        background: #f7fafc;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .drop-zone:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+            transform: translateY(-2px);
+        }
+
+        .drop-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .drop-zone:hover::before {
+            left: 100%;
+        }
+
+    .drop-zone-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .drop-icon {
+        width: 64px;
+        height: 64px;
+        color: #667eea;
+        margin-bottom: 1rem;
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .drop-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .drop-primary {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .drop-secondary {
+        font-size: 0.875rem;
+        color: #718096;
+    }
+
+    .drop-hint {
+        font-size: 0.875rem;
+        color: #a0aec0;
+        margin: 0;
+    }
+
+    .file-input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    /* ===== Upload Features ===== */
+    .upload-features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-top: 2.5rem;
+    }
+
+    .feature-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        background: #f7fafc;
+        border-radius: 12px;
+        transition: all 0.3s;
+    }
+
+        .feature-item:hover {
+            background: #edf2f7;
+            transform: translateY(-4px);
+        }
+
+    .feature-icon {
+        width: 32px;
+        height: 32px;
+        color: #667eea;
+    }
+
+    .feature-item span {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #4a5568;
+        text-align: center;
+    }
+
+    /* ===== Preview Section ===== */
+    .preview-section {
+        background: white;
+        border-radius: 24px;
+        padding: 2.5rem;
+        max-width: 900px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        position: relative;
+        z-index: 1;
+    }
+
+    .animate-in {
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .preview-header {
+        margin-bottom: 2rem;
+    }
+
+    .preview-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0;
+    }
+
+    .title-icon {
+        width: 28px;
+        height: 28px;
+        color: #667eea;
+    }
+
+    /* ===== Action Buttons ===== */
+    .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .btn svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+    .btn-secondary {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #cbd5e0;
+            transform: translateY(-2px);
+        }
+
+    /* ===== Spinner ===== */
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* ===== Modal Overlay ===== */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        padding: 1rem;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* ===== Success/Error Modal ===== */
+    .modal-content {
+        background: white;
+        border-radius: 24px;
+        padding: 3rem;
+        max-width: 480px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @@keyframes modalSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(40px) scale(0.9);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .modal-icon-wrapper {
+        display: inline-flex;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-icon {
+        width: 80px;
+        height: 80px;
+        animation: iconPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+    }
+
+    @@keyframes iconPop {
+        0% {
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        50% {
+            transform: scale(1.1);
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .success-icon {
+        color: #10b981;
+    }
+
+    .error-icon {
+        color: #ef4444;
+    }
+
+    .modal-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 0.75rem 0;
+    }
+
+    .modal-message {
+        font-size: 1rem;
+        color: #718096;
+        margin: 0 0 2rem 0;
+        line-height: 1.6;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    /* ===== Validation Modal ===== */
+    .validation-modal {
+        background: white;
+        border-radius: 20px;
+        max-width: 600px;
+        width: 100%;
+        max-height: 85vh;
+        overflow: hidden;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .validation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        color: white;
+    }
+
+    .validation-modal.success .validation-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .validation-modal.danger .validation-header {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .validation-header-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+        .validation-header-content h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+    .validation-header-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .close-button {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem;
+        cursor: pointer;
+        color: white;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .close-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .close-button svg {
+            width: 20px;
+            height: 20px;
+        }
+
+    .validation-body {
+        padding: 2rem;
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+        /* Custom Scrollbar for Validation Body */
+        .validation-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .validation-body::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .validation-body::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 10px;
+            transition: background 0.3s;
+        }
+
+            .validation-body::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+
+    .file-name {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: #f7fafc;
+        border-radius: 8px;
+    }
+
+        .file-name svg {
+            width: 20px;
+            height: 20px;
+            color: #667eea;
+        }
+
+    .validation-message {
+        font-size: 0.95rem;
+        color: #4a5568;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+
+    .validation-details {
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+        .validation-details.success {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+        }
+
+        .validation-details.danger {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+    .details-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 1rem;
+    }
+
+        .details-header svg {
+            width: 18px;
+            height: 18px;
+        }
+
+    .details-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .detail-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+
+        .detail-row.full-width {
+            flex-direction: column;
+        }
+
+    .detail-label {
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.875rem;
+    }
+
+    .detail-value {
+        color: #718096;
+        font-size: 0.875rem;
+    }
+
+    .section-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .tag {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: #e2e8f0;
+        color: #4a5568;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .reason-text {
+        color: #718096;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        margin: 0.5rem 0 0 0;
+    }
+
+    .validation-footer {
+        padding: 1.5rem 2rem;
+        background: #f7fafc;
+        display: flex;
+        justify-content: flex-end;
+        border-top: 1px solid #e2e8f0;
+        flex-shrink: 0;
+    }
+
+    /* ===== Responsive Design ===== */
+    @@media (max-width: 768px) {
+        .upload-page-container {
+            padding: 1rem;
+        }
+
+        .upload-section,
+        .preview-section {
+            padding: 2rem 1.5rem;
+        }
+
+        .upload-features {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .modal-content,
+        .validation-modal {
+            margin: 1rem;
+        }
+
+        .modal-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+
+@code {
+    private bool showLoader = false;
+    private List<IBrowserFile> selectedFiles = new();
+    private List<JsonViewer.JsonFileModel> myJsonFiles = new List<JsonViewer.JsonFileModel>();
+    private List<(string FileName, byte[] Bytes)> uploadedFileBytes = new();
+    private Guid fileInputKey = Guid.NewGuid();
+    private long maxFileSize = 10 * 1024 * 1024;
+    public BlobServiceClient _blobServiceClient;
+    
+    [Inject]
+    public IConfiguration _configuration { get; set; }
+    
+    private bool isUploading = false;
+    private bool showPopup = false;
+    private bool showDocValidationPopup = false;
+    private bool isUploadSuccess = false;
+    private string popupMessage = string.Empty;
+    private string validationMessage = string.Empty;
+    private string validationDetails = string.Empty;
+    private string validationModalType = "success";
+    private string currentValidationFileName = string.Empty;
+    private string documentType = string.Empty;
+    private string validationConfidence = string.Empty;
+    private List<string> matchedSections = new();
+    private string validationReason = string.Empty;
+    
+    [Inject] private NavigationManager NavigationManager { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var azureConnectionString = _configuration.GetSection("AzureBlobStorage")["ConnectionString"];
+        _blobServiceClient = new BlobServiceClient(azureConnectionString);
+    }
+
+    private void HandleDragOver()
+    {
+        // Handle drag over event
+    }
+
+    private void HandleDragLeave()
+    {
+        // Handle drag leave event
+    }
+
+    private void HandleDrop()
+    {
+        // Handle drop event
+    }
+
+    private void ShowPopup(string message, bool success)
+    {
+        popupMessage = message;
+        isUploadSuccess = success;
+        showPopup = true;
+    }
+
+    private void ClosePopup()
+    {
+        showPopup = false;
+    }
+
+    private void CloseModal()
+    {
+        showDocValidationPopup = false;
+        StateHasChanged();
+    }
+
+    private void NavigateToJDSearch()
+    {
+        showPopup = false;
+        NavigationManager.NavigateTo("/");
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFiles.Clear();
+        uploadedFileBytes.Clear();
+        myJsonFiles.Clear();
+        showLoader = true;
+        StateHasChanged();
+
+        var validFiles = new List<(string Name, byte[] Bytes, string Text)>();
+        
+        foreach (var file in e.GetMultipleFiles())
+        {
+            try
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                var fileBytes = ms.ToArray();
+
+                uploadedFileBytes.Add((file.Name, fileBytes));
+
+                string base64 = Convert.ToBase64String(fileBytes);
+                ExtractMetaDataForResume extractMetaDataForResume = new();
+                var metaData = await extractMetaDataForResume.ExtractMetaData(
+                    IsPdfMime(file) ? ExtractTextFromBase64Pdf(base64) : ReadWordText(new MemoryStream(fileBytes))
+                );
+
+                currentValidationFileName = file.Name;
+                var validationResult = await ProfileValidationService.ValidateResumeDocument(metaData);
+
+                if (!validationResult.IsValid)
+                {
+                    validationModalType = "danger";
+                    validationMessage = validationResult.Message;
+                    documentType = "Other";
+                    validationConfidence = validationResult.Confidence.ToString("F1");
+                    matchedSections = validationResult.MatchedSections;
+                    validationReason = validationResult.Reason;
+                    validationDetails = "show";
+                    showLoader = false;
+                    StateHasChanged();
+                    await ShowModal();
+
+                    while (showDocValidationPopup)
+                    {
+                        await Task.Delay(100);
+                    }
+
+                    showLoader = true;
+                    StateHasChanged();
+                    continue;
+                }
+                else
+                {
+                    validFiles.Add((file.Name, fileBytes, metaData));
+                    validationModalType = "success";
+                    validationMessage = validationResult.Message;
+                    
+                    myJsonFiles.Add(new JsonViewer.JsonFileModel
+                    {
+                        FileName = file.Name,
+                        Content = System.Text.Json.JsonSerializer.Serialize(metaData)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                currentValidationFileName = file.Name;
+                validationModalType = "danger";
+                validationMessage = $"Error processing file: {ex.Message}";
+                documentType = "Error";
+                validationConfidence = "0";
+                matchedSections.Clear();
+                validationReason = string.Empty;
+                validationDetails = string.Empty;
+
+                showLoader = false;
+                StateHasChanged();
+                await ShowModal();
+                
+                while (showDocValidationPopup)
+                {
+                    await Task.Delay(100);
+                }
+
+                showLoader = true;
+                StateHasChanged();
+                continue;
+            }
+        }
+
+        showLoader = false;
+        StateHasChanged();
+    }
+
+    private async Task ShowModal()
+    {
+        showDocValidationPopup = true;
+        StateHasChanged();
+    }
+
+    bool IsPdfMime(IBrowserFile file) => file.ContentType == "application/pdf";
+
+    bool IsDocxMime(IBrowserFile file) =>
+        file.ContentType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    public string ExtractTextFromBase64Pdf(string base64Pdf)
+    {
+        byte[] pdfBytes = Convert.FromBase64String(base64Pdf);
+        using var ms = new MemoryStream(pdfBytes);
+        using var reader = new PdfReader(ms);
+        var text = new StringBuilder();
+
+        for (int i = 1; i <= reader.NumberOfPages; i++)
+        {
+            string pageText = PdfTextExtractor.GetTextFromPage(reader, i);
+            text.AppendLine(pageText);
+        }
+        return text.ToString();
+    }
+
+    public static string ReadWordText(Stream docxStream)
+    {
+        StringBuilder text = new StringBuilder();
+        using (var wordDoc = WordprocessingDocument.Open(docxStream, false))
+        {
+            var body = wordDoc.MainDocumentPart.Document.Body;
+            text.Append(body.InnerText);
+        }
+        return text.ToString();
+    }
+
+    private async Task GoBack()
+    {
+        showLoader = true;
+        myJsonFiles = new List<JsonViewer.JsonFileModel>();
+        selectedFiles.Clear();
+        uploadedFileBytes.Clear();
+        showLoader = false;
+    }
+
+    private async Task UploadFiles()
+    {
+        showLoader = true;
+        isUploading = true;
+
+        try
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient("resumes");
+            await containerClient.CreateIfNotExistsAsync();
+
+            foreach (var file in uploadedFileBytes)
+            {
+                var blobClient = containerClient.GetBlobClient(file.FileName);
+                using var ms = new MemoryStream(file.Bytes);
+                await blobClient.UploadAsync(ms, overwrite: true);
+            }
+
+            myJsonFiles.Clear();
+            selectedFiles.Clear();
+            uploadedFileBytes.Clear();
+
+            ShowPopup("Files uploaded successfully!", true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Upload failed: {ex}");
+            ShowPopup($"Upload failed: {ex.Message}", false);
+        }
+        finally
+        {
+            showLoader = false;
+            isUploading = false;
+        }
+    }
+}
