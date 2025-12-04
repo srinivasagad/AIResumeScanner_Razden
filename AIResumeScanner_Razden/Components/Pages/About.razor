@@ -1,28 +1,352 @@
 ﻿@page "/about"
 <PageTitle>About AI Resume Scanner</PageTitle>
 
-<div class="container mt-4">
-    <h2>About AI Resume Scanner</h2>
-    <p>
-        The AI Resume Scanner is a smart tool designed to help recruiters and job seekers analyze resumes against specific job descriptions using artificial intelligence.
-    </p>
-    <h4>How the Process Works</h4>
-    <ol class="mb-4">
-        <li>
-            <strong>JD Mapper</strong>
-            This allows the user to verify which profiles matched to the given job description.
-        </li>
-        <li>
-            <strong>Upload Resumes:</strong>
-            Allow user to upload one or more resume files (PDF or Word format). Also render the resumes in json format.
-        </li>
-        <li>
-            <strong>Dashboard</strong>
-             Under development.....
-        </li>
-       
-    </ol>
-    <p>
-        This process streamlines candidate screening, making it easier to identify the best matches for your job openings.
-    </p>
+<style>
+    .about-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+        position: relative;
+        overflow: hidden;
+    }
+
+    @@keyframes gradientShift {
+        0% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    .floating-shapes {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 1;
+    }
+
+    .shape {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        animation: float 20s infinite ease-in-out;
+    }
+
+        .shape:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 200px;
+            height: 200px;
+            top: 60%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        .shape:nth-child(3) {
+            width: 150px;
+            height: 150px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        .shape:nth-child(4) {
+            width: 250px;
+            height: 250px;
+            top: 30%;
+            right: 30%;
+            animation-delay: 1s;
+        }
+
+    @@keyframes float {
+        0%, 100% {
+            transform: translate(0, 0) rotate(0deg);
+        }
+
+        25% {
+            transform: translate(50px, 50px) rotate(90deg);
+        }
+
+        50% {
+            transform: translate(0, 100px) rotate(180deg);
+        }
+
+        75% {
+            transform: translate(-50px, 50px) rotate(270deg);
+        }
+    }
+
+    .content-container {
+        position: relative;
+        z-index: 2;
+        padding: 80px 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .glass-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        border-radius: 30px;
+        padding: 50px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        margin-bottom: 30px;
+        animation: fadeInUp 1s ease-out;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .main-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        color: white;
+        text-align: center;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 20px rgba(0, 0, 0, 0.3);
+        animation: titleGlow 2s ease-in-out infinite alternate;
+    }
+
+    @@keyframes titleGlow {
+        from {
+            text-shadow: 2px 2px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        to {
+            text-shadow: 2px 2px 30px rgba(255, 255, 255, 0.8);
+        }
+    }
+
+    .subtitle {
+        font-size: 1.3rem;
+        color: rgba(255, 255, 255, 0.9);
+        text-align: center;
+        margin-bottom: 50px;
+        line-height: 1.8;
+    }
+
+    .section-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 30px;
+        position: relative;
+        display: inline-block;
+    }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #fff, transparent);
+            border-radius: 2px;
+        }
+
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        margin-top: 40px;
+    }
+
+    .feature-card {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 35px;
+        transition: all 0.4s ease;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .feature-card:hover::before {
+            left: 100%;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+    .feature-number {
+        font-size: 3rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.4);
+        margin-bottom: 15px;
+        transition: all 0.4s ease;
+    }
+
+    .feature-card:hover .feature-number {
+        color: rgba(255, 255, 255, 0.9);
+        transform: scale(1.2);
+    }
+
+    .feature-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 15px;
+    }
+
+    .feature-description {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+        line-height: 1.6;
+    }
+
+    .closing-text {
+        text-align: center;
+        font-size: 1.2rem;
+        color: white;
+        margin-top: 50px;
+        padding: 30px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+    }
+
+    .icon-wrapper {
+        width: 70px;
+        height: 70px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        font-size: 2rem;
+        transition: all 0.4s ease;
+    }
+
+    .feature-card:hover .icon-wrapper {
+        background: rgba(255, 255, 255, 0.4);
+        transform: rotate(360deg);
+    }
+
+    @@media (max-width: 768px) {
+        .main-title {
+            font-size: 2.5rem;
+        }
+
+        .glass-card {
+            padding: 30px 20px;
+        }
+
+        .feature-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="about-wrapper">
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <div class="content-container">
+        <div class="glass-card">
+            <h1 class="main-title">About AI Resume Scanner</h1>
+            <p class="subtitle">
+                A cutting-edge intelligent tool designed to revolutionize the way recruiters and job seekers
+                analyze resumes against specific job descriptions using the power of artificial intelligence.
+            </p>
+        </div>
+
+        <div class="glass-card">
+            <h3 class="section-title">How the Process Works</h3>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon-wrapper">🎯</div>
+                    <div class="feature-number">01</div>
+                    <h4 class="feature-title">JD Scanner</h4>
+                    <p class="feature-description">
+                        Intelligently scan job descriptions and get profiles that perfectly match the requirements.
+                        Our AI analyzes keywords, skills, and qualifications to find the best candidates.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon-wrapper">📄</div>
+                    <div class="feature-number">02</div>
+                    <h4 class="feature-title">Upload Resumes</h4>
+                    <p class="feature-description">
+                        Upload one or multiple resume files in PDF or Word format. Our system automatically
+                        verifies that the uploaded documents are valid resumes, ensuring data integrity.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon-wrapper">📊</div>
+                    <div class="feature-number">03</div>
+                    <h4 class="feature-title">Dashboard</h4>
+                    <p class="feature-description">
+                        Currently under development... Soon you'll have access to a comprehensive analytics
+                        dashboard with real-time insights and visualizations of your screening results.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="icon-wrapper">🔢</div>
+                    <div class="feature-number">04</div>
+                    <h4 class="feature-title">Token History</h4>
+                    <p class="feature-description">
+                        Track and verify the number of tokens required to process each prompt. Monitor your
+                        usage and optimize your AI processing efficiency.
+                    </p>
+                </div>
+            </div>
+
+            <div class="closing-text">
+                <strong>✨ Streamlining Candidate Screening</strong><br />
+                This intelligent process makes it easier than ever to identify the best matches for your job openings,
+                saving time and improving hiring decisions through the power of AI.
+            </div>
+        </div>
+    </div>
 </div>
