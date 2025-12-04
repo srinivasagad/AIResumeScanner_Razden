@@ -760,12 +760,15 @@
 				currentValidationFileName = file.Name;
 
                 //Use result from ProfileValidationService to validate profile document
-				var result = await ProfileValidationService.ValidateResumeDocument(metaData);
+
+				//var result =  ProfileValidationService.ValidateResumeJson(metaData);
+
+				var validationResult = await ProfileValidationService.ValidateResumeDocument(metaData);
 
 				
 				
 
-				var validationResult = await ValidationService.ValidateResumeDocument(metaData);
+				//var validationResult = await ValidationService.ValidateResumeDocument(metaData);
 
 				if (!validationResult.IsValid)
 				{
@@ -777,8 +780,18 @@
                     validationReason = validationResult.Reason;
                     validationDetails = "show";
 					showLoader = false;
+					StateHasChanged();
                 	await ShowModal();
-					break;
+					//break;
+
+					while (showDocValidationPopup)
+					{
+						await Task.Delay(100);
+					}
+
+					showLoader = true; // Re-enable loader for next file
+					StateHasChanged();
+					continue;
 				}
 				else
 				{
@@ -807,8 +820,17 @@
                 validationDetails = string.Empty;
 
                 showLoader = false;
+				StateHasChanged();
                 await ShowModal();
-                break;
+                //break;
+				while (showDocValidationPopup)
+				{
+					await Task.Delay(100);
+				}
+
+				showLoader = true; // Re-enable loader for next file
+				StateHasChanged();
+				continue; // Continue to next file instead of breaking
 			}
 		}
 
