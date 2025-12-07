@@ -1,0 +1,1171 @@
+﻿@page "/dashboard3"
+
+@using Azure;
+@using Azure.Search.Documents;
+@using Azure.Search.Documents.Indexes;
+@using Radzen
+@using Radzen.Blazor
+@inject AzureAISearchGrounding SearchService
+
+<style>
+    /* Mesmerizing Animations & Effects */
+    @@keyframes gradientShift {
+        0% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    @@keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-20px);
+        }
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+    }
+
+    @@keyframes shimmer {
+        0% {
+            background-position: -1000px 0;
+        }
+
+        100% {
+            background-position: 1000px 0;
+        }
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @@keyframes glow {
+        0%, 100% {
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+
+        50% {
+            box-shadow: 0 0 40px rgba(102, 126, 234, 0.8), 0 0 60px rgba(102, 126, 234, 0.6);
+        }
+    }
+
+    /* Background with animated gradient */
+    .dashboard-container {
+        background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+        min-height: 100vh;
+        padding: 2rem;
+    }
+
+    /* Glassmorphism Search Card */
+    .search-card-glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        padding: 2rem;
+        animation: fadeInUp 0.6s ease-out;
+        transition: all 0.3s ease;
+    }
+
+        .search-card-glass:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px 0 rgba(31, 38, 135, 0.5);
+        }
+
+    /* Search Input with glow effect */
+    .search-input-mesmerizing {
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid transparent;
+        border-radius: 16px;
+        padding: 16px 24px;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+        .search-input-mesmerizing:focus {
+            outline: none;
+            border-color: #667eea;
+            animation: glow 2s ease-in-out infinite;
+            transform: scale(1.02);
+        }
+
+    /* Animated Search Button */
+    .search-button-mesmerizing {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 16px;
+        padding: 16px 32px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .search-button-mesmerizing::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .search-button-mesmerizing:hover::before {
+            left: 100%;
+        }
+
+        .search-button-mesmerizing:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+        }
+
+    /* Stats Cards with gradient backgrounds */
+    .stat-card {
+        border-radius: 20px;
+        padding: 1.5rem;
+        color: white;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: fadeInUp 0.6s ease-out;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: rotate(45deg);
+            animation: shimmer 3s infinite;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+    .stat-card-1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        animation-delay: 0.1s;
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        animation-delay: 0.2s;
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        animation-delay: 0.3s;
+    }
+
+    .stat-card-4 {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        animation-delay: 0.4s;
+    }
+
+    /* Icon animation */
+    .stat-icon {
+        font-size: 3rem;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    /* Chart Cards */
+    .chart-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        animation: fadeInUp 0.8s ease-out;
+        transition: all 0.3s ease;
+    }
+
+        .chart-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+        }
+
+    /* Profile Cards with hover effects */
+    .profile-grid-card {
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        animation: fadeInUp 1s ease-out;
+    }
+
+    /* DataGrid row animation */
+    .rz-datatable-data tr {
+        animation: slideInRight 0.4s ease-out;
+        transition: all 0.3s ease;
+    }
+
+        .rz-datatable-data tr:hover {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.1), transparent);
+            transform: translateX(5px);
+        }
+
+    /* Loading animation */
+    .loading-container {
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* Badge animations */
+    .animated-badge {
+        animation: fadeInUp 0.3s ease-out;
+        transition: all 0.2s ease;
+    }
+
+        .animated-badge:hover {
+            transform: scale(1.1);
+        }
+
+    /* Progress bar glow */
+    .rz-progressbar-value {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+    }
+
+    /* Filter dropdowns */
+    .filter-dropdown {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        border: 2px solid rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+    }
+
+        .filter-dropdown:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+    /* No results state */
+    .no-results {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* Particle effect background */
+    .particles {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .particle {
+        position: absolute;
+        background: white;
+        border-radius: 50%;
+        opacity: 0.3;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    /* Stagger animations for cards */
+    .stat-card:nth-child(1) {
+        animation-delay: 0.1s;
+    }
+
+    .stat-card:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .stat-card:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+
+    .stat-card:nth-child(4) {
+        animation-delay: 0.4s;
+    }
+
+    .chart-card:nth-child(1) {
+        animation-delay: 0.5s;
+    }
+
+    .chart-card:nth-child(2) {
+        animation-delay: 0.6s;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #667eea, #764ba2);
+        border-radius: 10px;
+    }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #764ba2, #667eea);
+        }
+
+    /* Tooltip enhancement */
+    .rz-tooltip {
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 8px;
+    }
+
+    /* ========== ENHANCED SKILLS PIE CHART STYLES ========== */
+
+    /* Enhanced Skills Chart Card */
+    .enhanced-skills-chart {
+        position: relative;
+        overflow: visible;
+    }
+
+        .enhanced-skills-chart::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+            border-radius: 22px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .enhanced-skills-chart:hover::after {
+            opacity: 0.1;
+        }
+
+    /* Pie Chart Container */
+    .skills-pie-chart-container {
+        position: relative;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
+        border-radius: 16px;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+    }
+
+    /* Custom Tooltip Styling */
+    .custom-tooltip {
+        background: white;
+        padding: 1rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        border: 2px solid #667eea;
+        min-width: 200px;
+    }
+
+    /* Skill Stats Grid Below Chart */
+    .skills-stats-grid {
+        padding: 1rem;
+        background: rgba(102, 126, 234, 0.02);
+        border-radius: 12px;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .skill-stat-card {
+        background: white;
+        padding: 12px 16px;
+        border-radius: 10px;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        cursor: pointer;
+        animation: fadeInUp 0.5s ease-out both;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-left: 4px solid #667eea;
+    }
+
+        .skill-stat-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        }
+
+    /* Pie Chart Slice Animation */
+    .rz-pie-series path {
+        transition: all 0.3s ease;
+        animation: pieSliceGrow 0.8s ease-out backwards;
+    }
+
+        .rz-pie-series path:hover {
+            opacity: 0.85;
+            filter: brightness(1.1);
+            transform: scale(1.05);
+            transform-origin: center;
+        }
+
+    @@keyframes pieSliceGrow {
+        from {
+            opacity: 0;
+            transform: scale(0);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    /* Stagger pie slice animations */
+    .rz-pie-series path:nth-child(1) {
+        animation-delay: 0.1s;
+    }
+
+    .rz-pie-series path:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .rz-pie-series path:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+
+    .rz-pie-series path:nth-child(4) {
+        animation-delay: 0.4s;
+    }
+
+    .rz-pie-series path:nth-child(5) {
+        animation-delay: 0.5s;
+    }
+
+    .rz-pie-series path:nth-child(6) {
+        animation-delay: 0.6s;
+    }
+
+    .rz-pie-series path:nth-child(7) {
+        animation-delay: 0.7s;
+    }
+
+    .rz-pie-series path:nth-child(8) {
+        animation-delay: 0.8s;
+    }
+
+    .rz-pie-series path:nth-child(9) {
+        animation-delay: 0.9s;
+    }
+
+    .rz-pie-series path:nth-child(10) {
+        animation-delay: 1.0s;
+    }
+
+    /* Enhanced Data Labels for Pie Chart */
+    .rz-pie-series text {
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9);
+    }
+
+    /* Legend Styling */
+    .rz-legend-item {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+        .rz-legend-item:hover {
+            transform: translateX(5px);
+            opacity: 0.8;
+        }
+
+    /* Progress Bar Custom Colors - Using Radzen's default styling */
+    .skill-stat-card .rz-progressbar-value {
+        background: inherit;
+        box-shadow: none;
+    }
+
+    /* Individual skill card progress bars with gradients */
+    .skill-stat-card:nth-child(1) .rz-progressbar-value {
+        background: linear-gradient(90deg, #667eea, #764ba2) !important;
+    }
+
+    .skill-stat-card:nth-child(2) .rz-progressbar-value {
+        background: linear-gradient(90deg, #764ba2, #f093fb) !important;
+    }
+
+    .skill-stat-card:nth-child(3) .rz-progressbar-value {
+        background: linear-gradient(90deg, #f093fb, #4facfe) !important;
+    }
+
+    .skill-stat-card:nth-child(4) .rz-progressbar-value {
+        background: linear-gradient(90deg, #4facfe, #00f2fe) !important;
+    }
+
+    .skill-stat-card:nth-child(5) .rz-progressbar-value {
+        background: linear-gradient(90deg, #00f2fe, #43e97b) !important;
+    }
+
+    .skill-stat-card:nth-child(6) .rz-progressbar-value {
+        background: linear-gradient(90deg, #43e97b, #38f9d7) !important;
+    }
+</style>
+
+<div class="dashboard-container">
+    <!-- Particle Background -->
+    <div class="particles">
+        @for (int i = 0; i < 20; i++)
+        {
+            <div class="particle" style="width: @(Random.Shared.Next(3, 8))px;
+                                         height: @(Random.Shared.Next(3, 8))px;
+                                         left: @(Random.Shared.Next(0, 100))%;
+                                         top: @(Random.Shared.Next(0, 100))%;
+                                         animation-delay: @(Random.Shared.Next(0, 5))s;"></div>
+        }
+    </div>
+
+    <RadzenStack Gap="1.5rem" Style="max-width: 1400px; margin: 0 auto; position: relative; z-index: 1;">
+
+        @* Mesmerizing Search Header *@
+        <div class="search-card-glass">
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center" Wrap="FlexWrap.Wrap">
+                <RadzenIcon Icon="tune" class="stat-icon" Style="font-size: 2.5rem; color: white; margin: 0;" />
+
+                <RadzenDropDown @bind-Value="@selectedCategory"
+                                Data="@categories"
+                                Placeholder="📁 Category"
+                                AllowClear="true"
+                                class="filter-dropdown"
+                                Style="width: 200px;" />
+
+                <RadzenDropDown @bind-Value="@selectedTitle"
+                                Data="@titles"
+                                Placeholder="💼 Title"
+                                AllowClear="true"
+                                class="filter-dropdown"
+                                Style="width: 200px;" />
+
+                @*  <RadzenTextBox @bind-Value="@skillFilter" 
+                Placeholder="⚡ Skill Filter"
+                class="filter-dropdown"
+                Style="width: 200px;" /> *@
+
+                <RadzenButton Text="Apply Filters"
+                              Icon="filter_list"
+                              Click="@SearchProfiles"
+                              class="search-button-mesmerizing"
+                              IsBusy="@isLoading" />
+            </RadzenStack>
+        </div>
+
+        @if (isLoading)
+        {
+            <RadzenCard class="search-card-glass loading-container">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" Style="padding: 3rem;">
+                    <RadzenProgressBarCircular ShowValue="false"
+                                               Mode="ProgressBarMode.Indeterminate"
+                                               Size="ProgressBarCircularSize.Large"
+                                               Style="color: white;" />
+                    <RadzenText TextStyle="TextStyle.H6" Style="color: white; font-weight: 600;">
+                        ✨ Loading profiles with AI magic...
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        }
+        else if (profileData.Any())
+        {
+            @* Mesmerizing Statistics Cards *@
+            <RadzenRow Gap="1rem">
+                <RadzenColumn Size="12" SizeMD="3">
+                    <div class="stat-card stat-card-1">
+                        <RadzenStack AlignItems="AlignItems.Center">
+                            <RadzenIcon Icon="person" class="stat-icon" />
+                            <RadzenText TextStyle="TextStyle.H3" Style="margin: 0; font-weight: 700;">
+                                @profileData.Count
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body1" Style="opacity: 0.9;">
+                                Total Profiles
+                            </RadzenText>
+                        </RadzenStack>
+                    </div>
+                </RadzenColumn>
+
+                <RadzenColumn Size="12" SizeMD="3">
+                    <div class="stat-card stat-card-2">
+                        <RadzenStack AlignItems="AlignItems.Center">
+                            <RadzenIcon Icon="code" class="stat-icon" />
+                            <RadzenText TextStyle="TextStyle.H3" Style="margin: 0; font-weight: 700;">
+                                @totalSkills
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body1" Style="opacity: 0.9;">
+                                Unique Skills
+                            </RadzenText>
+                        </RadzenStack>
+                    </div>
+                </RadzenColumn>
+
+                <RadzenColumn Size="12" SizeMD="3">
+                    <div class="stat-card stat-card-3">
+                        <RadzenStack AlignItems="AlignItems.Center">
+                            <RadzenIcon Icon="star" class="stat-icon" />
+                            <RadzenText TextStyle="TextStyle.H3" Style="margin: 0; font-weight: 700;">
+                                @averageScore.ToString("F1")
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body1" Style="opacity: 0.9;">
+                                Avg Match Score
+                            </RadzenText>
+                        </RadzenStack>
+                    </div>
+                </RadzenColumn>
+
+                <RadzenColumn Size="12" SizeMD="3">
+                    <div class="stat-card stat-card-4">
+                        <RadzenStack AlignItems="AlignItems.Center">
+                            <RadzenIcon Icon="workspace_premium" class="stat-icon" />
+                            <RadzenText TextStyle="TextStyle.H3" Style="margin: 0; font-weight: 700;">
+                                @experiencedProfiles
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body1" Style="opacity: 0.9;">
+                                5+ Years Exp
+                            </RadzenText>
+                        </RadzenStack>
+                    </div>
+                </RadzenColumn>
+            </RadzenRow>
+
+            @* Enhanced Chart Section *@
+            <RadzenRow Gap="1rem">
+                <RadzenColumn Size="12" SizeLG="6">
+                    <div class="chart-card enhanced-skills-chart">
+                        <RadzenStack Gap="1rem">
+                            <!-- Enhanced Header with Stats -->
+                            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                                <RadzenStack Gap="0.5rem">
+                                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">
+                                        🎯 Top Skills Distribution
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #666; margin: 0;">
+                                        Most in-demand skills across @profileData.Count profiles
+                                    </RadzenText>
+                                </RadzenStack>
+                                <RadzenBadge Text="@($"{totalSkills} Total Skills")"
+                                             BadgeStyle="BadgeStyle.Info"
+                                             Style="padding: 8px 16px; border-radius: 20px; font-weight: 600;" />
+                            </RadzenStack>
+
+                            <!-- Pie Chart Container with Custom Styling -->
+                            <div class="skills-pie-chart-container">
+                                <RadzenChart Style="height: 300px;">
+                                    <!-- Enhanced Pie Series -->
+                                    <RadzenPieSeries Data="@skillsData"
+                                                     CategoryProperty="Skill"
+                                                     ValueProperty="Count"
+                                                     Title="Skills"
+                                                     Fills="@pieChartColors">
+                                        <ChildContent>
+                                            <RadzenSeriesDataLabels Visible="true" />
+                                        </ChildContent>
+                                        <TooltipTemplate Context="data">
+                                            <div class="custom-tooltip">
+                                                <div style="font-weight: 700; font-size: 1.1rem; color: #667eea; margin-bottom: 0.5rem;">
+                                                    @((data as SkillCount).Skill)
+                                                </div>
+                                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                    <RadzenIcon Icon="person" Style="font-size: 1.2rem; color: #764ba2;" />
+                                                    <span style="font-size: 1rem; font-weight: 600;">
+                                                        @((data as SkillCount).Count) profiles
+                                                    </span>
+                                                </div>
+                                                <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(102, 126, 234, 0.2);">
+                                                    <small style="color: #666;">
+                                                        @{
+                                                            var totalSkillOccurrences = profileData.SelectMany(p => p.Skills).Count();
+                                                            var percentage = totalSkillOccurrences > 0 ? ((data as SkillCount).Count * 100.0 / totalSkillOccurrences) : 0;
+                                                        }
+                                                        @percentage.ToString("F1")% of all skills
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </TooltipTemplate>
+                                    </RadzenPieSeries>
+
+                                    <!-- Legend -->
+                                    <RadzenLegend Position="LegendPosition.Right" />
+                                </RadzenChart>
+                            </div>
+
+                            <!-- Skill Stats Grid Below Chart -->
+                            <div class="skills-stats-grid">
+                                <RadzenRow Gap="0.75rem">
+                                    @for (int i = 0; i < Math.Min(6, skillsData.Count); i++)
+                                    {
+                                        var skill = skillsData[i];
+                                        var colorIndex = i % pieChartColors.Length;
+                                        var totalSkillOccurrences = profileData.SelectMany(p => p.Skills).Count();
+                                        var percentage = totalSkillOccurrences > 0 ? (skill.Count * 100.0 / totalSkillOccurrences) : 0;
+                                        var badgeStyle = $"background: {pieChartColors[colorIndex]}; color: white; font-weight: 700; padding: 4px 10px;";
+                                        var borderStyle = $"animation-delay: {i * 0.1}s; border-left: 4px solid {pieChartColors[colorIndex]};";
+                                        var progressBarColor = pieChartColors[colorIndex];
+
+                                        <RadzenColumn Size="6" SizeMD="4">
+                                            <div class="skill-stat-card" style="@borderStyle">
+                                                <RadzenStack Gap="0.25rem">
+                                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 700; color: #333; margin: 0;">
+                                                        @skill.Skill
+                                                    </RadzenText>
+                                                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                                        <RadzenBadge Text="@skill.Count.ToString()"
+                                                                     BadgeStyle="BadgeStyle.Light"
+                                                                     Style="@badgeStyle" />
+                                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #666; margin: 0;">
+                                                            @percentage.ToString("F1")%
+                                                        </RadzenText>
+                                                    </RadzenStack>
+                                                    <RadzenProgressBar Value="@skill.Count"
+                                                                       Max="@skillsData.Max(s => s.Count)"
+                                                                       ShowValue="false"
+                                                                       Style="height: 6px; border-radius: 10px; margin-top: 0.25rem;" />
+                                                </RadzenStack>
+                                            </div>
+                                        </RadzenColumn>
+                                    }
+                                </RadzenRow>
+                            </div>
+                        </RadzenStack>
+                    </div>
+                </RadzenColumn>
+
+                <RadzenColumn Size="12" SizeLG="6">
+                    <div class="chart-card">
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem; background: linear-gradient(135deg, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">
+                            📊 Match Score Distribution
+                        </RadzenText>
+                        <RadzenChart>
+                            <RadzenLineSeries Data="@scoreDistribution"
+                                              CategoryProperty="Range"
+                                              ValueProperty="Count"
+                                              Title="Profiles"
+                                              Smooth="true"
+                                              Stroke="#f5576c"
+                                              StrokeWidth="3" />
+                            <RadzenAreaSeries Data="@scoreDistribution"
+                                              CategoryProperty="Range"
+                                              ValueProperty="Count"
+                                              Fill="rgba(245, 87, 108, 0.3)" />
+                            <RadzenValueAxis>
+                                <RadzenGridLines Visible="true" />
+                                <RadzenAxisTitle Text="Number of Profiles" />
+                            </RadzenValueAxis>
+                            <RadzenCategoryAxis>
+                                <RadzenAxisTitle Text="Score Range" />
+                            </RadzenCategoryAxis>
+                        </RadzenChart>
+                    </div>
+                </RadzenColumn>
+            </RadzenRow>
+
+            @* Enhanced Pie/Donut Charts *@
+            <RadzenRow Gap="1rem">
+                <RadzenColumn Size="12" SizeLG="6">
+                    <div class="chart-card">
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem; background: linear-gradient(135deg, #4facfe, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">
+                            💼 Experience Level Distribution
+                        </RadzenText>
+                        <RadzenChart>
+                            <RadzenPieSeries Data="@experienceData"
+                                             CategoryProperty="Level"
+                                             ValueProperty="Count"
+                                             Title="Profiles">
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </RadzenPieSeries>
+                            <RadzenLegend Position="LegendPosition.Right" />
+                        </RadzenChart>
+                    </div>
+                </RadzenColumn>
+
+                <RadzenColumn Size="12" SizeLG="6">
+                    <div class="chart-card">
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem; background: linear-gradient(135deg, #43e97b, #38f9d7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">
+                            🏷️ Profile Categories
+                        </RadzenText>
+                        <RadzenChart>
+                            <RadzenDonutSeries Data="@categoryData"
+                                               CategoryProperty="Category"
+                                               ValueProperty="Count"
+                                               InnerRadius="0.5">
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </RadzenDonutSeries>
+                            <RadzenLegend Position="LegendPosition.Bottom" />
+                        </RadzenChart>
+                    </div>
+                </RadzenColumn>
+            </RadzenRow>
+
+            @* Enhanced Profile Grid *@
+            <div class="profile-grid-card">
+                <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 1rem; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">
+                    👥 Profile Results
+                </RadzenText>
+
+                <RadzenDataGrid Data="@profileData"
+                                TItem="ProfileData"
+                                AllowPaging="true"
+                                PageSize="10"
+                                AllowSorting="true"
+                                AllowFiltering="true"
+                                FilterMode="FilterMode.Simple"
+                                Style="border-radius: 12px; overflow: hidden;">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="ProfileData" Property="Name" Title="Name" Width="200px">
+                            <Template Context="profile">
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                    <RadzenGravatar Email="@profile.Email" Style="width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);" />
+                                    <div>
+                                        <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 600; margin: 0; color: #333;">
+                                            @profile.Name
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #666; margin: 0;">
+                                            @profile.Title
+                                        </RadzenText>
+                                    </div>
+                                </RadzenStack>
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="ProfileData" Property="Category" Title="Category" Width="230px">
+                            <Template Context="profile">
+                                <RadzenBadge Text="@profile.Category"
+                                             BadgeStyle="BadgeStyle.Info"
+                                             class="animated-badge"
+                                             Style="padding: 8px 16px; border-radius: 20px;" />
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="ProfileData" Property="Experience" Title="Experience" Width="120px">
+                            <Template Context="profile">
+                                <RadzenText Style="font-weight: 500; color: #555;">
+                                    @profile.Experience
+                                </RadzenText>
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="ProfileData" Property="Skills" Title="Skills" Width="350px">
+                            <Template Context="profile">
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" Wrap="FlexWrap.Wrap">
+                                    @foreach (var skill in profile.Skills.Take(5))
+                                    {
+                                        <RadzenBadge Text="@skill"
+                                                     BadgeStyle="BadgeStyle.Light"
+                                                     class="animated-badge"
+                                                     Style="font-size: 0.75rem; padding: 6px 12px; border-radius: 12px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));" />
+                                    }
+                                    @if (profile.Skills.Count > 5)
+                                    {
+                                        <RadzenBadge Text="@($"+{profile.Skills.Count - 5}")"
+                                                     BadgeStyle="BadgeStyle.Secondary"
+                                                     class="animated-badge"
+                                                     Style="font-size: 0.75rem; padding: 6px 12px; border-radius: 12px;" />
+                                    }
+                                </RadzenStack>
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="ProfileData" Property="MatchScore" Title="Match Score" Width="180px" Sortable="true">
+                            <Template Context="profile">
+                                <RadzenStack Gap="0.5rem">
+                                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                        <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 700; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                                            @profile.MatchScore.ToString("F1")%
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption">
+                                            @GetStarRating(profile.MatchScore)
+                                        </RadzenText>
+                                    </RadzenStack>
+                                    <RadzenProgressBar Value="@profile.MatchScore"
+                                                       Max="100"
+                                                       ShowValue="false"
+                                                       Style="height: 8px; border-radius: 10px;" />
+                                </RadzenStack>
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="ProfileData" Title="Actions" Width="120px" Sortable="false" Filterable="false" Visible="false">
+                            <Template Context="profile">
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                                    <RadzenButton Icon="visibility"
+                                                  Size="ButtonSize.Small"
+                                                  ButtonStyle="ButtonStyle.Light"
+                                                  Style="border-radius: 8px; transition: all 0.3s ease;"
+                                                  Click="@(() => ViewProfile(profile))" />
+                                    <RadzenButton Icon="download"
+                                                  Size="ButtonSize.Small"
+                                                  ButtonStyle="ButtonStyle.Light"
+                                                  Style="border-radius: 8px; transition: all 0.3s ease;"
+                                                  Click="@(() => DownloadProfile(profile))" />
+                                </RadzenStack>
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </div>
+        }
+        else if (!isLoading)
+        {
+            <div class="search-card-glass no-results">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="1rem" Style="padding: 3rem;">
+                    <RadzenIcon Icon="filter_list_off" Style="font-size: 5rem; color: white; opacity: 0.7;" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; font-weight: 600;">
+                        No profiles found
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body1" Style="color: rgba(255,255,255,0.8);">
+                        Try adjusting your filters or click "Apply Filters" to load all profiles
+                    </RadzenText>
+                </RadzenStack>
+            </div>
+        }
+
+    </RadzenStack>
+</div>
+
+@code {
+    private string selectedCategory = null;
+    private string selectedTitle = null;
+    private string skillFilter = null;
+    private bool isLoading = false;
+    private List<ProfileData> profileData = new();
+
+    private List<string> categories = new()
+    {
+        "Software Development",
+        "Data Science",
+        "DevOps",
+        "UI/UX Design",
+        "QA Engineering"
+    };
+
+    private List<string> titles = new()
+    {
+        "Senior Developer",
+        "Software Engineer",
+        "Full Stack Developer",
+        "Backend Developer",
+        "Frontend Developer",
+        "DevOps Engineer",
+        "Data Scientist",
+        "ML Engineer"
+    };
+
+    private int totalSkills => profileData.SelectMany(p => p.Skills).Distinct().Count();
+    private double averageScore => profileData.Any() ? profileData.Average(p => p.MatchScore) : 0;
+    private int experiencedProfiles => profileData.Count(p => p.ExperienceYears >= 5);
+
+    private List<SkillCount> skillsData = new();
+    private List<ScoreRange> scoreDistribution = new();
+    private List<ExperienceLevel> experienceData = new();
+    private List<CategoryCount> categoryData = new();
+    long documentCount = 0;
+
+    // Pie chart gradient colors
+    private string[] pieChartColors = new string[]
+    {
+        "#667eea", // Purple Blue
+        "#764ba2", // Deep Purple
+        "#f093fb", // Pink Purple
+        "#4facfe", // Sky Blue
+        "#00f2fe", // Cyan
+        "#43e97b", // Green
+        "#38f9d7", // Turquoise
+        "#f5576c", // Coral Red
+        "#fa709a", // Pink
+        "#fee140"  // Yellow
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Auto-load profiles on initialization
+        await SearchProfiles();
+    }
+
+    private async Task SearchProfiles()
+    {
+        // Use wildcard search to get all profiles, filtered by any selected filters
+        string query = "*"; // Wildcard to match all documents
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SearchService.QueryWithGrounding(query, topK: 25,
+                includeGrounding: true,
+                categoryFilter: selectedCategory,
+                titleFilter: selectedTitle,
+                skillFilter: skillFilter);
+
+            documentCount = response.TotalResults;
+            profileData.Clear();
+
+            if (response?.Profiles != null)
+            {
+
+                foreach (var item in response.Profiles)
+                {
+                    profileData.Add(new ProfileData
+                        {
+                            Id = item.Id,
+                            Name = item.Name,
+                            Title = item.Title,
+                            Category = item.Category,
+                            Email = item.Email,
+                            ExperienceYears = item.ExperienceYears,
+                            Experience = item.Experience,
+                            Skills = item.Skills,
+                            MatchScore = item.MatchScore
+                        });
+                }
+            }
+
+            GenerateChartData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void GenerateChartData()
+    {
+        skillsData = profileData
+            .SelectMany(p => p.Skills)
+            .GroupBy(s => s)
+            .Select(g => new SkillCount { Skill = g.Key, Count = g.Count() })
+            .OrderByDescending(s => s.Count)
+            .Take(10)
+            .ToList();
+
+        scoreDistribution = new List<ScoreRange>
+        {
+            new ScoreRange { Range = "60-69", Count = profileData.Count(p => p.MatchScore >= 60 && p.MatchScore < 70) },
+            new ScoreRange { Range = "70-79", Count = profileData.Count(p => p.MatchScore >= 70 && p.MatchScore < 80) },
+            new ScoreRange { Range = "80-89", Count = profileData.Count(p => p.MatchScore >= 80 && p.MatchScore < 90) },
+            new ScoreRange { Range = "90-100", Count = profileData.Count(p => p.MatchScore >= 90) }
+        };
+
+        experienceData = new List<ExperienceLevel>
+        {
+            new ExperienceLevel { Level = "Junior (0-2 years)", Count = profileData.Count(p => p.ExperienceYears < 3) },
+            new ExperienceLevel { Level = "Mid-Level (3-5 years)", Count = profileData.Count(p => p.ExperienceYears >= 3 && p.ExperienceYears < 6) },
+            new ExperienceLevel { Level = "Senior (6-10 years)", Count = profileData.Count(p => p.ExperienceYears >= 6 && p.ExperienceYears < 11) },
+            new ExperienceLevel { Level = "Expert (10+ years)", Count = profileData.Count(p => p.ExperienceYears >= 11) }
+        };
+
+        categoryData = profileData
+            .GroupBy(p => p.Category)
+            .Select(g => new CategoryCount { Category = g.Key, Count = g.Count() })
+            .ToList();
+    }
+
+    private string GetStarRating(double score)
+    {
+        int stars = score switch
+        {
+            >= 90 => 5,
+            >= 80 => 4,
+            >= 70 => 3,
+            >= 60 => 2,
+            _ => 1
+        };
+        return new string('⭐', stars);
+    }
+
+    private void ViewProfile(ProfileData profile)
+    {
+        Console.WriteLine($"Viewing profile: {profile.Name}");
+    }
+
+    private void DownloadProfile(ProfileData profile)
+    {
+        Console.WriteLine($"Downloading profile: {profile.Name}");
+    }
+
+    public class ProfileData
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Title { get; set; }
+        public string Category { get; set; }
+        public string Email { get; set; }
+        public double ExperienceYears { get; set; }
+        public string Experience { get; set; }
+        public List<string> Skills { get; set; }
+        public double MatchScore { get; set; }
+    }
+
+    public class SkillCount
+    {
+        public string Skill { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class ScoreRange
+    {
+        public string Range { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class ExperienceLevel
+    {
+        public string Level { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class CategoryCount
+    {
+        public string Category { get; set; }
+        public int Count { get; set; }
+    }
+}

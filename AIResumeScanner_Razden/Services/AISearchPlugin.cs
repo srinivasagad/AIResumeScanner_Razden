@@ -54,7 +54,8 @@ namespace AIResumeScanner_Razden.Services
                 var searchOptions = new SearchOptions
                 {
                     Size = top,
-                    Select = { "Id", "Title", "chunks", "Content", "fileName" },
+                    //Select = { "Id", "Title", "chunks", "Content", "fileName" },
+                    Select = { "Id", "chunks", "Content", "fileName" },
                     IncludeTotalCount = true,
                     HighlightFields = { "chunks", "Content" },
                     QueryType = SearchQueryType.Semantic,

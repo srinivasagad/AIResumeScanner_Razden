@@ -36,18 +36,30 @@ namespace AIResumeScanner_Razden
 
             builder.Services.AddSingleton<ProfileValidationService>();
             // Register Azure Text Analytics Service
-            builder.Services.AddSingleton<ResumeValidationService>(sp =>
-            {
-                // Get configuration from appsettings.json
-                var configuration = sp.GetRequiredService<IConfiguration>();
-                string endpoint = configuration["AzureTextAnalytics:Endpoint"];
-                string apiKey = configuration["AzureTextAnalytics:ApiKey"];
+            //builder.Services.AddSingleton<ResumeValidationService>(sp =>
+            //{
+            //    // Get configuration from appsettings.json
+            //    var configuration = sp.GetRequiredService<IConfiguration>();
+            //    string endpoint = configuration["AzureTextAnalytics:Endpoint"];
+            //    string apiKey = configuration["AzureTextAnalytics:ApiKey"];
 
-                return new ResumeValidationService(endpoint, apiKey);
-            });
+            //    return new ResumeValidationService(endpoint, apiKey);
+            //});
 
             builder.Services.AddHttpClient(); // Registers IHttpClientFactory
-
+            builder.Services.AddScoped<AzureAISearchGrounding>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+                string searchEndpoint = "https://resumeaisearchstore.search.windows.net";
+                string searchApiKey = "4psgmJYJRx5OdFgCXrkcPJRhYsbH1t3hQIVhcML2MHAzSeCSOFvJ";
+                string indexName = "dashboardsearchindex";
+                string openAIEndpoint = "https://resumeembeddingendpoint.openai.azure.com/";
+                string openAIApiKey = "BxUQYM8ND9UR2q3WqFrk2YlyHR4NHCG2ORy6xpublVSY4WIl3TwYJQQJ99BJACYeBjFXJ3w3AAABACOGeGiz";
+                string embeddingDeployment = "text-embedding-ada-002";
+                string chatDeployment = "gpt-5-nano";
+                
+                return new AzureAISearchGrounding(searchEndpoint, searchApiKey, indexName, openAIEndpoint, openAIApiKey, embeddingDeployment, chatDeployment);
+            });
             builder.Services.AddSingleton<SignalRNotificationService>();
             builder.Services.AddSingleton<SentimentService>();
             //builder.Services.AddSingleton<SearchAgent>();
