@@ -275,7 +275,7 @@ Analyze whether the extracted JSON:
 
 
 Validation Rules:
-1. Check if **all required fields** listed above are present in the JSON
+1. Check if **all required fields** listed above are present in the JSON and having values
 2. Verify each field uses the **correct data type**
 3. Ensure the **structure matches**, including nested objects and arrays
 4. Validate that array items contain **all required subfields**
