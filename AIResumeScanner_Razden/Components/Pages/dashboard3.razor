@@ -584,10 +584,10 @@
                                 class="filter-dropdown"
                                 Style="width: 200px;" />
 
-                @*  <RadzenTextBox @bind-Value="@skillFilter" 
+                 <RadzenTextBox @bind-Value="@skillFilter" 
                 Placeholder="⚡ Skill Filter"
                 class="filter-dropdown"
-                Style="width: 200px;" /> *@
+                Style="width: 200px;" />
 
                 <RadzenButton Text="Apply Filters"
                               Icon="filter_list"
@@ -1035,7 +1035,7 @@
 
         try
         {
-            var response = await SearchService.QueryWithGrounding(query, topK: 25,
+            var response = await SearchService.QueryWithGrounding(query, topK: 10,
                 includeGrounding: true,
                 categoryFilter: selectedCategory,
                 titleFilter: selectedTitle,

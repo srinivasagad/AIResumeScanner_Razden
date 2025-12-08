@@ -53,7 +53,7 @@ namespace AIResumeScanner_Razden.Services
             int topK = 25,
             bool includeGrounding = true, string categoryFilter = null,
                                           string titleFilter = null,
-                                          string skillFilter = null, SkillSearchMode skillSearchMode = SkillSearchMode.StartsWith)
+                                          string skillFilter = null, SkillSearchMode skillSearchMode = SkillSearchMode.Multiple)
         {
             try
             {
@@ -75,36 +75,7 @@ namespace AIResumeScanner_Razden.Services
                         QueryAnswer = new QueryAnswer(QueryAnswerType.Extractive)
                     }
                 };
-
-                // **Build filter expression**
-                /*
-                var filters = new List<string>();
-
-                if (!string.IsNullOrWhiteSpace(categoryFilter))
-                {
-                    filters.Add($"Category eq '{categoryFilter.Replace("'", "''")}'");
-                }
-
-                if (!string.IsNullOrWhiteSpace(titleFilter))
-                {
-                    filters.Add($"Title eq '{titleFilter.Replace("'", "''")}'");
-                }
-
-                if (!string.IsNullOrWhiteSpace(skillFilter))
-                {
-                    // For collection fields, use any/all lambda expressions
-                    filters.Add($"Skills/any(s: s eq '{skillFilter.Replace("'", "''")}'  or contains(s, '{skillFilter.Replace("'", "''")}'))");
-                }
-
-                // Apply combined filter
-                if (filters.Any())
-                {
-                    searchOptions.Filter = string.Join(" and ", filters);
-                }
-                */
-
-
-                /////
+                
                 // Build filter expression
                 var filters = BuildFilterExpression(categoryFilter, titleFilter, skillFilter, skillSearchMode);
 
@@ -112,10 +83,8 @@ namespace AIResumeScanner_Razden.Services
                 if (filters.Any())
                 {
                     searchOptions.Filter = string.Join(" and ", filters);
-                    Console.WriteLine($"Applied Filter: {searchOptions.Filter}"); // Debug
+                    Console.WriteLine($"Applied Filter: {searchOptions.Filter}"); 
                 }
-
-
 
                 // Add vector search
                 if (queryEmbedding != null)
@@ -227,11 +196,14 @@ namespace AIResumeScanner_Razden.Services
         }
 
 
-        /// <summary>
-        /// Builds skill filter expression based on search mode
-        /// </summary>
+       
+
+      
         private string BuildSkillFilterExpression(string skillFilter, SkillSearchMode mode)
         {
+            if (string.IsNullOrWhiteSpace(skillFilter))
+                return string.Empty;
+
             var escapedSkill = EscapeODataString(skillFilter.Trim());
 
             switch (mode)
@@ -249,12 +221,18 @@ namespace AIResumeScanner_Razden.Services
                     return $"Skills/any(s: startswith(s, '{escapedSkill}'))";
 
                 case SkillSearchMode.ExactOrContains:
-                    // Combination of exact OR contains (default in your code)
+                    // Combination of exact OR contains
                     return $"Skills/any(s: s eq '{escapedSkill}' or search.ismatch('{escapedSkill}', 's'))";
 
                 case SkillSearchMode.Multiple:
-                    // Search for multiple skills (comma or space separated)
-                    return BuildMultipleSkillFilter(skillFilter);
+                    // Search for multiple skills (comma separated) - OR logic
+                    // Returns documents that contain ANY of the specified skills
+                    return BuildMultipleSkillFilter(skillFilter, useAndLogic: false);
+
+                case SkillSearchMode.MultipleAll:
+                    // Search for multiple skills with AND logic
+                    // Returns documents that contain ALL of the specified skills
+                    return BuildMultipleSkillFilter(skillFilter, useAndLogic: true);
 
                 case SkillSearchMode.Fuzzy:
                     // Fuzzy matching for typos
@@ -265,70 +243,66 @@ namespace AIResumeScanner_Razden.Services
             }
         }
 
-        /// <summary>
-        /// Builds filter for multiple skills (OR logic)
-        /// </summary>
-        private string BuildMultipleSkillFilter(string skillFilter)
+        private string BuildMultipleSkillFilter(string skillFilter, bool useAndLogic = false)
         {
-            // Split by comma, semicolon, or pipe
-            var skills = skillFilter.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+            // Split by comma and trim whitespace
+            var skills = skillFilter
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => s.Trim())
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToList();
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
-            if (!skills.Any())
+            if (skills.Length == 0)
                 return string.Empty;
 
-            // Build OR condition for each skill
-            var skillConditions = skills.Select(skill =>
-                $"(s eq '{EscapeODataString(skill)}' or search.ismatch('{EscapeODataString(skill)}', 's'))"
-            );
-
-            return $"Skills/any(s: {string.Join(" or ", skillConditions)})";
+            if (useAndLogic)
+            {
+                // AND logic: All skills must match
+                var filterParts = skills.Select(skill =>
+                {
+                    var escapedSkill = EscapeODataString(skill);
+                    return $"Skills/any(s: search.in(s, '{escapedSkill}', ','))";
+                });
+                return $"({string.Join(" and ", filterParts)})";
+            }
+            else
+            {
+                // OR logic: Any skill matches - use search.in() with pipe-delimited list
+                var escapedSkills = skills.Select(EscapeODataString);
+                var skillList = string.Join("|", escapedSkills);
+                return $"Skills/any(s: search.in(s, '{skillList}', '|'))";
+            }
         }
 
-        /// <summary>
-        /// Escapes special characters in OData strings
-        /// </summary>
         private string EscapeODataString(string value)
         {
             if (string.IsNullOrEmpty(value))
                 return value;
 
-            // Replace single quotes with double single quotes for OData
+            // Escape single quotes by doubling them
             return value.Replace("'", "''");
         }
 
-
-        /// <summary>
-        /// Enum for different skill search modes
-        /// </summary>
+        // Enum definition
         public enum SkillSearchMode
         {
-            /// <summary>Exact match only (case-insensitive)</summary>
-            Exact,
-
-            /// <summary>Partial match using contains</summary>
-            Contains,
-
-            /// <summary>Starts with the search term</summary>
-            StartsWith,
-
-            /// <summary>Exact OR contains (default)</summary>
-            ExactOrContains,
-
-            /// <summary>Search for multiple skills (OR logic)</summary>
-            Multiple,
-
-            /// <summary>Fuzzy search for typos</summary>
-            Fuzzy
+            Exact,              // Exact match: Skills must match exactly
+            Contains,           // Partial match: Skills contain the search term
+            StartsWith,         // Prefix match: Skills start with the search term
+            ExactOrContains,    // Either exact or contains
+            Multiple,           // Multiple skills with OR logic (any match)
+            MultipleAll,        // Multiple skills with AND logic (all must match)
+            Fuzzy               // Fuzzy match for typos
         }
+
+        //=================
+
+
 
         /// <summary>
         /// Generates embeddings for text using Azure OpenAI
         /// </summary>
-
-
 
         public async Task<float[]> GenerateEmbedding(string text)
         {
@@ -446,10 +420,23 @@ namespace AIResumeScanner_Razden.Services
             {
                 if (document.TryGetValue(fieldName, out object value))
                 {
+                    // Handle explicit null values
+                    if (value == null)
+                    {
+                        return default;
+                    }
+
                     if (value is JsonElement jsonElement)
                     {
+                        // Handle JsonElement null values
+                        if (jsonElement.ValueKind == JsonValueKind.Null)
+                        {
+                            return default;
+                        }
+
                         return JsonSerializer.Deserialize<T>(jsonElement.GetRawText());
                     }
+
                     return (T)value;
                 }
             }
@@ -457,6 +444,7 @@ namespace AIResumeScanner_Razden.Services
             {
                 Console.WriteLine($"Error extracting field {fieldName}: {ex.Message}");
             }
+
             return default;
         }
 
