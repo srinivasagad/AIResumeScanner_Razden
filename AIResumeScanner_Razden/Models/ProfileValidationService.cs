@@ -132,7 +132,7 @@ namespace AIResumeScanner_Razden.Models
 - location (string or null)
 - professional_summary (string or null)
 - skills (array)
-- total_experience_years (number or null)
+- total_experience_years (number or string)
 - work_experience (array of objects with: job_title, company_name, start_date, end_date, location, description)
 - projects (array of objects with: title, description, technologies)
 
@@ -269,7 +269,7 @@ Analyze whether the extracted JSON:
 - phone (string)
 - professional_summary (string)
 - skills (array)
-- total_experience_years (number)
+- total_experience_years (string or number)
 - work_experience (array of objects with: job_title, company_name, start_date, end_date, location, description)
 - projects (array of objects with: title, description, technologies)
 
