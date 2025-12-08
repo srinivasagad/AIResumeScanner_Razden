@@ -736,7 +736,7 @@
                             <!-- Skill Stats Grid Below Chart -->
                             <div class="skills-stats-grid">
                                 <RadzenRow Gap="0.75rem">
-                                    @for (int i = 0; i < Math.Min(6, skillsData.Count); i++)
+                                    @for (int i = 0; i < Math.Min(10, skillsData.Count); i++)
                                     {
                                         var skill = skillsData[i];
                                         var colorIndex = i % pieChartColors.Length;
@@ -1035,7 +1035,7 @@
 
         try
         {
-            var response = await SearchService.QueryWithGrounding(query, topK: 10,
+            var response = await SearchService.QueryWithGrounding(query, topK: 47,
                 includeGrounding: true,
                 categoryFilter: selectedCategory,
                 titleFilter: selectedTitle,
