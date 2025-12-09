@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIResumeScanner_Razden", "A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtractAndUploadToAISearchFunc", "ExtractAndUploadToAISearchFunc\ExtractAndUploadToAISearchFunc.csproj", "{CCC868BD-C670-6C88-E767-16BB5AD26A88}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResumeParserWebApi", "ResumeParserWebApi\ResumeParserWebApi.csproj", "{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{CCC868BD-C670-6C88-E767-16BB5AD26A88}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CCC868BD-C670-6C88-E767-16BB5AD26A88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CCC868BD-C670-6C88-E767-16BB5AD26A88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
