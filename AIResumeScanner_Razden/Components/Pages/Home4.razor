@@ -306,8 +306,15 @@ ShowFullscreenButton="true" />
             </div>
         </div>
 
+        <!-- Sidebar Toggle Button -->
+        <button class="sidebar-toggle-btn @(isSidebarCollapsed ? "collapsed" : "")"
+                @onclick="ToggleSidebar"
+                title="@(isSidebarCollapsed ? "Show Sidebar" : "Hide Sidebar")">
+            <i class="fas @(isSidebarCollapsed ? "fa-chevron-left" : "fa-chevron-right")"></i>
+        </button>
+
         <!-- Sidebar -->
-        <div class="chat-sidebar">
+        <div class="chat-sidebar @(isSidebarCollapsed ? "collapsed" : "")">
             <!-- Token Widget -->
             <div class="sidebar-card token-card">
                 <div class="card-header-custom">
@@ -1405,7 +1412,103 @@ ShowFullscreenButton="true" />
        RESPONSIVE DESIGN IMPROVEMENTS
        ======================================== */
 
-    /* Base styles remain the same until media queries */
+    /* Sidebar Toggle Button */
+    .sidebar-toggle-btn {
+        position: fixed;
+        right: 320px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 32px;
+        height: 64px;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 100;
+        transition: all 0.3s ease;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    }
+
+        .sidebar-toggle-btn:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .sidebar-toggle-btn.collapsed {
+            right: 0;
+            border-right: 1px solid #e0e0e0;
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-toggle-btn i {
+            font-size: 0.875rem;
+            transition: transform 0.3s ease;
+        }
+
+    /* Collapsible Sidebar */
+    .chat-sidebar {
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+        opacity: 1;
+    }
+
+        .chat-sidebar.collapsed {
+            width: 0;
+            opacity: 0;
+            overflow: hidden;
+            padding: 0;
+            gap: 0;
+        }
+
+    /* Adjust chat-main when sidebar is collapsed */
+    .chat-layout {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        padding: 1rem;
+        gap: 1rem;
+        min-height: 0;
+        position: relative;
+    }
+
+    @@media (max-width: 1024px) {
+        .sidebar-toggle-btn
+
+    {
+        display: none;
+    }
+
+    .chat-sidebar {
+        display: none;
+    }
+
+    .chat-layout {
+        padding: 0.5rem;
+    }
+
+    }
+
+    @@media (max-width: 768px) {
+        .sidebar-toggle-btn
+
+    {
+        display: none;
+    }
+
+    }
 
     
 </style>
@@ -1443,6 +1546,14 @@ ShowFullscreenButton="true" />
     private string textAnalyticsApiKey { get; set; } = string.Empty;
 
     private string sessionId = Guid.NewGuid().ToString();
+
+    private bool isSidebarCollapsed = false;
+
+    private void ToggleSidebar()
+    {
+        isSidebarCollapsed = !isSidebarCollapsed;
+        StateHasChanged();
+    }
 
     protected override void OnInitialized()
     {
