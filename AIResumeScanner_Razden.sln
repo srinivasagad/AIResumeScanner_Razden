@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExtractAndUploadToAISearchF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResumeParserWebApi", "ResumeParserWebApi\ResumeParserWebApi.csproj", "{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResumeMetadataExtractFunc", "ResumeMetadataExtractFunc\ResumeMetadataExtractFunc.csproj", "{1793C456-D0C4-4625-A69B-5E207B0DF85C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F0D104B-F3B7-F0AE-E158-6670F29B4F2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1793C456-D0C4-4625-A69B-5E207B0DF85C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1793C456-D0C4-4625-A69B-5E207B0DF85C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1793C456-D0C4-4625-A69B-5E207B0DF85C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1793C456-D0C4-4625-A69B-5E207B0DF85C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
